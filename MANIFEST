@@ -4,6 +4,7 @@ MANIFEST
 README
 Collate.pm
 Collate/keys.txt
+t/contract.t
 t/index.t
 t/hangul.t
 t/test.t
