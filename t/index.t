@@ -14,7 +14,7 @@ BEGIN {
 }
 
 use Test;
-BEGIN { plan tests => 61 };
+BEGIN { plan tests => 65 };
 use Unicode::Collate;
 
 our $IsEBCDIC = ord("A") != 0x41;
@@ -160,14 +160,26 @@ ok($match, undef);
 
 $Collator->change(level => 1);
 
-$str = "\0\cA\0\cAe\0\cA\x{300}\0\cA";
+$str = "\0\cA\0\cAe\0\x{300}\cA\x{301}\cB\x{302}\0 \0\cA";
 $sub = "e";
-$ret = "e\0\cA\x{300}";
+$ret = "e\0\x{300}\cA\x{301}\cB\x{302}\0";
 $match = undef;
 if (my($pos, $len) = $Collator->index($str, $sub)) {
     $match = substr($str, $pos, $len);
 }
 ok($match, $ret);
+
+$Collator->change(level => 1);
+
+$str = "\0\cA\0\cAe\0\cA\x{300}\0\cAe";
+$sub = "e";
+$ret = "e\0\cA\x{300}\0\cA";
+$match = undef;
+if (my($pos, $len) = $Collator->index($str, $sub)) {
+    $match = substr($str, $pos, $len);
+}
+ok($match, $ret);
+
 
 $Collator->change(%old_level);
 
@@ -232,10 +244,11 @@ my @ret;
 $Collator->change(level => 1);
 
 $ret = $Collator->match("P\cBe\x{300}\cBrl and PERL", "pe");
-ok($ret && $$ret eq "P\cBe\x{300}");
+ok($ret);
+ok($$ret eq "P\cBe\x{300}\cB");
 
 @ret = $Collator->match("P\cBe\x{300}\cBrl and PERL", "pe");
-ok($ret[0] eq "P\cBe\x{300}");
+ok($ret[0], "P\cBe\x{300}\cB");
 
 $str = $IsEBCDIC ? "mu\x{0059}" : "mu\x{00DF}";
 $sub = $IsEBCDIC ? "m\x{00DC}ss" : "m\x{00FC}ss";
@@ -250,10 +263,23 @@ $sub = $IsEBCDIC ? "m\x{00DC}s" : "m\x{00FC}s";
 ok($ret, undef);
 
 $ret = join ':', $Collator->gmatch("P\cBe\x{300}\cBrl, perl, and PERL", "pe");
-ok($ret eq "P\cBe\x{300}:pe:PE");
+ok($ret eq "P\cBe\x{300}\cB:pe:PE");
 
 $ret = $Collator->gmatch("P\cBe\x{300}\cBrl, perl, and PERL", "pe");
 ok($ret == 3);
+
+$str = "ABCDEF";
+$sub = "cde";
+$ret = $Collator->match($str, $sub);
+$str = "01234567";
+ok($ret && $$ret, "CDE");
+
+$str = "ABCDEF";
+$sub = "cde";
+($ret) = $Collator->match($str, $sub);
+$str = "01234567";
+ok($ret, "CDE");
+
 
 $Collator->change(level => 3);
 

@@ -18,7 +18,7 @@ require Exporter;
 # Tester(s) welcome!
 our $IsEBCDIC = ord("A") != 0x41;
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 our $PACKAGE = __PACKAGE__;
 
 our @ISA = qw(Exporter);
@@ -59,14 +59,20 @@ use constant NOMATCHPOS => -1;
 # This is also used as a HAS_UNICODE_NORMALIZE flag.
 our $getCombinClass;
 
-# minimum weight at level 2 and 3, respectively
+# Minimum weights at level 2 and 3, respectively
 use constant Min2   => 0x20;
 use constant Min3   => 0x02;
 
-# shifted weight at 4th level
+# Shifted weight at 4th level
 use constant Shift4 => 0xFFFF;
 
-# a boolean for Variable and 16-bit weights at 4 levels of Collation Element
+# Variable weight at 1st level.
+# This is a negative value but should be regarded as zero on collation.
+# This is for distinction of variable chars from level 3 ignorable chars.
+use constant Var1 => -1;
+
+
+# A boolean for Variable and 16-bit weights at 4 levels of Collation Element
 # PROBLEM: The Default Unicode Collation Element Table
 # has weights over 0xFFFF at the 4th level.
 # The tie-breaking in the variable weights
@@ -122,9 +128,10 @@ our @ChangeNG = qw/
     entry entries table combining maxlength
     ignoreChar ignoreName undefChar undefName
     versionTable alternateTable backwardsTable forwardsTable rearrangeTable
-    derivCode normCode rearrangeHash isShift L3ignorable
+    derivCode normCode rearrangeHash L3_ignorable
   /;
 # The hash key 'ignored' is deleted at VERSION 0.21.
+# The hash key 'isShift' are deleted at VERSION 0.23.
 
 my (%ChangeOK, %ChangeNG);
 @ChangeOK{ @ChangeOK } = ();
@@ -163,9 +170,6 @@ sub checkCollator {
     $self->{alternate} = lc($self->{alternate});
     croak "$PACKAGE unknown alternate tag name: $self->{alternate}"
 	unless exists $AlternateOK{ $self->{alternate} };
-
-    $self->{isShift} = $self->{alternate} eq 'shifted' ||
-		$self->{alternate} eq 'shift-trimmed';
 
     $self->{backwards} = []
 	if ! defined $self->{backwards};
@@ -320,7 +324,7 @@ sub parseEntry
 	if defined $self->{ignoreName} && $name =~ /$self->{ignoreName}/;
 
     my $combining = TRUE; # primary = 0, secondary != 0;
-    my $level3ignore;
+    my $is_L3_ignorable;
 
     foreach my $arr ($k =~ /\[([^\[\]]+)\]/g) { # SPACEs allowed
 	my $var = $arr =~ /\*/; # exactly /^\*/ but be lenient.
@@ -328,8 +332,10 @@ sub parseEntry
 	push @key, pack(VCE_TEMPLATE, $var, @wt);
 	$combining = FALSE
 	    unless $wt[0] == 0 && $wt[1] != 0;
-	$level3ignore = TRUE
-	    if $wt[0] == 0 && $wt[1] == 0 && $wt[2] == 0;
+	$is_L3_ignorable = TRUE
+	    if $wt[0] + $wt[1] + $wt[2] == 0;
+	  # if $arr !~ /[1-9A-Fa-f]/; NG
+	  # Conformance Test shows L3-ignorable is completely ignorable.
     }
 
     $self->{entries}{$entry} = \@key;
@@ -337,19 +343,10 @@ sub parseEntry
     $self->{combining}{$entry} = TRUE
 	if $combining;
 
-    # A Level 3 ignorable (tertiary ignorable) is regarded
-    # as a completely ignorable
-    # since this module does not support the 5th level.
-    # Variable entries (marked with *) are not included.
-
-    # The difference between [.0000.0000.0000.0000] (e.g. NULL, DELETE)
-    # and [.0000.0000.0000.Non-Zero] (e.g. HEBREW ACCENT ETNAHTA)
-    # is neglected.
-
     # The key is a string representing a numeral code point.
 
-    $self->{L3ignorable}{$uv[0]} = TRUE
-	if @uv == 1 && $level3ignore;
+    $self->{L3_ignorable}{$uv[0]} = TRUE
+	if @uv == 1 && $is_L3_ignorable;
 
     # Contraction is to be considered in the range of this maxlength.
     $self->{maxlength}{$uv[0]} = scalar @uv
@@ -365,14 +362,14 @@ sub altCE
     my($var, @wt) = unpack(VCE_TEMPLATE, shift);
 
     $self->{alternate} eq 'blanked' ?
-	$var ? [0,0,0,$wt[3]] : \@wt :
+	$var ? [Var1, 0, 0, $wt[3]] : \@wt :
     $self->{alternate} eq 'non-ignorable' ?
 	\@wt :
     $self->{alternate} eq 'shifted' ?
-	$var ? [0,0,0,$wt[0] ]
+	$var ? [Var1, 0, 0, $wt[0] ]
 	     : [ @wt[0..2], $wt[0]+$wt[1]+$wt[2] ? Shift4 : 0 ] :
     $self->{alternate} eq 'shift-trimmed' ?
-	$var ? [0,0,0,$wt[0] ] : [ @wt[0..2], 0 ] :
+	$var ? [Var1, 0, 0, $wt[0] ] : [ @wt[0..2], 0 ] :
         croak "$PACKAGE unknown alternate name: $self->{alternate}";
 }
 
@@ -407,7 +404,7 @@ sub splitCE
     my $ent  = $self->{entries};
     my $max  = $self->{maxlength};
     my $reH  = $self->{rearrangeHash};
-    my $L3i  = $self->{L3ignorable};
+    my $ign  = $self->{L3_ignorable};
     my $ver9 = $self->{UCA_Version} > 8;
 
     my ($str, @buf);
@@ -445,7 +442,7 @@ sub splitCE
     if ($ver9) {
 	# To remove a character marked as a completely ignorable.
 	for (my $i = 0; $i < @src; $i++) {
-	    $src[$i] = undef if $L3i->{ $src[$i] };
+	    $src[$i] = undef if $ign->{ $src[$i] };
 	}
     }
 
@@ -480,6 +477,13 @@ sub splitCE
 		    $ce .= $tail;
 		    $src[$p] = undef;
 		}
+	    }
+	}
+
+	if ($wLen) {
+	    for (my $p = $i + 1; $p < @src; $p++) {
+		last if defined $src[$p];
+		$i = $p;
 	    }
 	}
 
@@ -543,21 +547,17 @@ sub getSortKey
     my $lev  = $self->{level};
     my $rCE  = $self->splitCE(shift); # get an arrayref of JCPS
     my $ver9 = $self->{UCA_Version} > 8;
-    my $sht  = $self->{isShift};
+    my $v2i  = $self->{alternate} ne 'non-ignorable';
 
     # weight arrays
     my (@buf, $last_is_variable);
 
     foreach my $wt (map $self->getWt($_), @$rCE) {
-	if ($sht && $ver9) {
-	    if ($wt->[0] == 0) {
-		if ($wt->[1] == 0 && $wt->[2] == 0) {
-		    $last_is_variable = TRUE;
-		} else {
-		    next if $last_is_variable;
-		}
+	if ($v2i && $ver9) {
+	    if ($wt->[0] == 0) { # ignorable
+		next if $last_is_variable;
 	    } else {
-		$last_is_variable = FALSE;
+		$last_is_variable = ($wt->[0] == Var1);
 	    }
 	}
 	push @buf, $wt;
@@ -567,7 +567,8 @@ sub getSortKey
     my @ret = ([],[],[],[]);
     foreach my $v (0..$lev-1) {
 	foreach my $b (@buf) {
-	    push @{ $ret[$v] }, $b->[$v] if $b->[$v];
+	    push @{ $ret[$v] }, $b->[$v]
+		if 0 < $b->[$v];
 	}
     }
     foreach (@{ $self->{backwards} }) {
@@ -675,20 +676,6 @@ sub _isNonCharacter {
 }
 
 
-# DEBUG for index()
-sub _viewGrapheme {
-    my $str = shift;
-    my $ret = '';
-    for my $gr (@$str) {
-	for my $wt (@$gr) {
-	    $ret .= sprintf "[%s]",
-		join '.', map sprintf("%04X", $_), @$wt;
-	}
-	$ret .= ", ";
-    }
-    return $ret;
-};
-
 ##
 ## bool _nonIgnorAtLevel(arrayref weights, int level)
 ##
@@ -747,7 +734,7 @@ sub index
     my $comb  = $self->{combining};
     my $lev   = $self->{level};
     my $ver9  = $self->{UCA_Version} > 8;
-    my $sht   = $self->{isShift};
+    my $v2i   = $self->{alternate} ne 'non-ignorable';
 
     if (! @$subCE) {
 	my $temp = $pos <= 0 ? 0 : $len <= $pos ? $len : $pos;
@@ -769,21 +756,18 @@ sub index
     for my $wt (map $self->getWt($_), @$subCE) {
 	my $to_be_pushed = _nonIgnorAtLevel($wt,$lev);
 
-	if ($sht && $ver9) {
+	if ($v2i && $ver9) {
 	    if ($wt->[0] == 0) {
-		if ($wt->[1] == 0 && $wt->[2] == 0) {
-		    $last_is_variable = TRUE;
-		} else {
-		    $to_be_pushed = FALSE if $last_is_variable;
-		}
+		$to_be_pushed = FALSE if $last_is_variable;
 	    } else {
-		$last_is_variable = FALSE;
+		$last_is_variable = ($wt->[0] == Var1);
 	    }
 	}
 
-	if (@subWt && $wt->[0] == 0 && $wt->[1] != 0) {
+	if (@subWt && $wt->[0] == 0) {
 	    push @{ $subWt[-1] }, $wt if $to_be_pushed;
 	} else {
+	    $wt->[0] = 0 if $wt->[0] == Var1;
 	    push @subWt, [ $wt ];
 	}
     }
@@ -796,26 +780,24 @@ sub index
     for (my $i = 0; $i <= $end; ) { # no $i++
 	my $found_base = 0;
 
+	# fetch a grapheme
 	while ($i <= $end && $found_base == 0) {
 	    for my $wt ($self->getWt($strCE->[$i][0])) {
 		my $to_be_pushed = _nonIgnorAtLevel($wt,$lev);
 
-		if ($sht && $ver9) {
+		if ($v2i && $ver9) {
 		    if ($wt->[0] == 0) {
-			if ($wt->[1] == 0 && $wt->[2] == 0) {
-			    $last_is_variable = TRUE;
-			} else {
-			    $to_be_pushed = FALSE if $last_is_variable;
-			}
+			$to_be_pushed = FALSE if $last_is_variable;
 		    } else {
-			$last_is_variable = FALSE;
+			$last_is_variable = ($wt->[0] == Var1);
 		    }
 		}
 
-		if (@strWt && $wt->[0] == 0 && $wt->[1] != 0) {
+		if (@strWt && $wt->[0] == 0) {
 		    push @{ $strWt[-1] }, $wt if $to_be_pushed;
 		    $finPos[-1] = $strCE->[$i][2];
 		} elsif ($to_be_pushed) {
+		    $wt->[0] = 0 if $wt->[0] == Var1;
 		    push @strWt,  [ $wt ];
 		    push @iniPos, $found_base ? NOMATCHPOS : $strCE->[$i][1];
 		    $finPos[-1] = NOMATCHPOS if $found_base;
@@ -827,6 +809,7 @@ sub index
 	    $i++;
 	}
 
+	# try to match
 	while ( @strWt > @subWt || (@strWt == @subWt && $i > $end) ) {
 	    if ($iniPos[0] != NOMATCHPOS &&
 		    $finPos[$#subWt] != NOMATCHPOS &&
@@ -863,11 +846,10 @@ sub match
 {
     my $self = shift;
     if (my($pos,$len) = $self->index($_[0], $_[1])) {
-	return wantarray
-		?  substr($_[0], $pos, $len)
-		: \substr($_[0], $pos, $len);
-	  # This is an lvalue, but subst() is more user-friendly
-	  # than ${ match() } = $replacement;
+	my $temp = substr($_[0], $pos, $len);
+	return wantarray ? $temp : \$temp;
+	# An lvalue ref \substr should be avoided,
+	# since its value is affected by modification of its referent.
     }
     else {
 	return;
@@ -1010,12 +992,12 @@ which are marked with an ASTERISK in the table
 These names are case-insensitive.
 By default (if specification is omitted), 'shifted' is adopted.
 
-   'Blanked'        Variable elements are ignorable at levels 1 through 3;
+   'Blanked'        Variable elements are made ignorable at levels 1 through 3;
                     considered at the 4th level.
 
    'Non-ignorable'  Variable elements are not reset to ignorable.
 
-   'Shifted'        Variable elements are ignorable at levels 1 through 3
+   'Shifted'        Variable elements are made ignorable at levels 1 through 3
                     their level 4 weight is replaced by the old level 1 weight.
                     Level 4 weight for Non-Variable elements is 0xFFFF.
 
@@ -1310,10 +1292,14 @@ and get the result of the comparison of the strings using UCA.
 
 B<DISCLAIMER:> If C<preprocess> or C<normalization> tag is true
 for C<$Collator>, calling these methods (C<index>, C<match>, C<gmatch>,
-C<subst>, C<gsubst>) are croaked,
+C<subst>, C<gsubst>) is croaked,
 as the position and the length might differ
 from those on the specified string.
 (And the C<rearrange> tag is neglected.)
+
+The C<match>, C<gmatch>, C<subst>, C<gsubst> methods work
+like C<m//>, C<m//g>, C<s///>, C<s///g>, respectively,
+but they are not aware of any pattern, but only a literal substring.
 
 =over 4
 
@@ -1391,7 +1377,7 @@ the first occurrence of the matching part is replaced by C<$replacement>
 C<$replacement> can be a C<CODEREF>,
 taking the matching part as an argument,
 and returning a string to replace the matching part
-(a bit silmilar to C<s/(..)/$coderef-E<gt>($1)/e>).
+(a bit similar to C<s/(..)/$coderef-E<gt>($1)/e>).
 
 =item C<$count = $Collator-E<gt>gsubst($string, $substring, $replacement)>
 
@@ -1402,7 +1388,7 @@ all the occurrences of the matching part is replaced by C<$replacement>
 C<$replacement> can be a C<CODEREF>,
 taking the matching part as an argument,
 and returning a string to replace the matching part
-(a bit silmilar to C<s/(..)/$coderef-E<gt>($1)/eg>).
+(a bit similar to C<s/(..)/$coderef-E<gt>($1)/eg>).
 
 e.g.
 

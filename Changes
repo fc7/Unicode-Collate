@@ -1,5 +1,12 @@
 Revision history for Perl extension Unicode::Collate.
 
+0.23  Wed Sep 04 19:25:20 2002
+    - fix: scalar match() no longer returns an lvalue substr ref.
+    - fix: "Ignorable after variable" should be made level 3 ignorable
+           even if alternate => 'blanked'.
+    - Now a grapheme may contain trailing level 2, level 3,
+      and completely ignorable characters.
+
 0.22  Mon Sep 02 23:15:14 2002
     - New File: index.t.
       (The new test.t excludes tests for index.)

@@ -14,7 +14,7 @@ BEGIN {
 }
 
 use Test;
-BEGIN { plan tests => 177 };
+BEGIN { plan tests => 194 };
 use Unicode::Collate;
 
 our $IsEBCDIC = ord("A") != 0x41;
@@ -552,18 +552,64 @@ ok($Collator  ->gt("\x{4E03}", $katakana));
 
 ##############
 
-# Shifted; ignorable after variable
+# ignorable after variable
 
+# Shifted;
 ok($Collator->eq("?\x{300}!\x{301}\x{315}", "?!"));
-ok($Collator->eq("?\x{300}A\x{300}", "?A\x{300}"));
+ok($Collator->eq("?\x{300}A\x{301}", "?$A_acute"));
 ok($Collator->eq("?\x{300}", "?"));
 ok($Collator->eq("?\x{344}", "?")); # U+0344 has two CEs.
 
-$Collator->change(alternate => 'Non-ignorable');
+$Collator->change(level => 3);
+ok($Collator->eq("\cA", "?"));
 
+$Collator->change(alternate => 'blanked', level => 4);
+ok($Collator->eq("?\x{300}!\x{301}\x{315}", "?!"));
+ok($Collator->eq("?\x{300}A\x{301}", "?$A_acute"));
+ok($Collator->eq("?\x{300}", "?"));
+ok($Collator->eq("?\x{344}", "?")); # U+0344 has two CEs.
+
+$Collator->change(level => 3);
+ok($Collator->eq("\cA", "?"));
+
+$Collator->change(alternate => 'Non-ignorable', level => 4);
+
+ok($Collator->lt("?\x{300}", "?!"));
+ok($Collator->gt("?\x{300}A$acute", "?$A_acute"));
 ok($Collator->gt("?\x{300}", "?"));
+ok($Collator->gt("?\x{344}", "?"));
 
-$Collator->change(alternate => 'Shifted');
+$Collator->change(level => 3);
+ok($Collator->lt("\cA", "?"));
 
+$Collator->change(alternate => 'Shifted', level => 4);
 
+##############
 
+# According to Conformance Test,
+# a L3-ignorable is treated as a completely ignorable.
+
+my $L3ignorable = Unicode::Collate->new(
+  alternate => 'Non-ignorable',
+  table => undef,
+  normalization => undef,
+  entry => <<'ENTRIES',
+0000  ; [.0000.0000.0000.0000] # [0000] NULL (in 6429)
+0001  ; [.0000.0000.0000.0000] # [0001] START OF HEADING (in 6429)
+0591  ; [.0000.0000.0000.0591] # HEBREW ACCENT ETNAHTA
+1D165 ; [.0000.0000.0000.1D165] # MUSICAL SYMBOL COMBINING STEM
+0021  ; [*024B.0020.0002.0021] # EXCLAMATION MARK
+09BE  ; [.114E.0020.0002.09BE] # BENGALI VOWEL SIGN AA
+09C7  ; [.1157.0020.0002.09C7] # BENGALI VOWEL SIGN E
+09CB  ; [.1159.0020.0002.09CB] # BENGALI VOWEL SIGN O
+09C7 09BE ; [.1159.0020.0002.09CB] # BENGALI VOWEL SIGN O
+ENTRIES
+);
+
+ok($L3ignorable->lt("\cA", "!"));
+ok($L3ignorable->lt("\x{591}", "!"));
+ok($L3ignorable->eq("\cA", "\x{591}"));
+ok($L3ignorable->eq("\x{09C7}\x{09BE}A", "\x{09C7}\cA\x{09BE}A"));
+ok($L3ignorable->eq("\x{09C7}\x{09BE}A", "\x{09C7}\x{0591}\x{09BE}A"));
+ok($L3ignorable->eq("\x{09C7}\x{09BE}A", "\x{09C7}\x{1D165}\x{09BE}A"));
+ok($L3ignorable->eq("\x{09C7}\x{09BE}A", "\x{09CB}A"));
