@@ -14,8 +14,10 @@ BEGIN {
 }
 
 use Test;
-BEGIN { plan tests => 184 };
+BEGIN { plan tests => 177 };
 use Unicode::Collate;
+
+our $IsEBCDIC = ord("A") != 0x41;
 
 #########################
 
@@ -51,13 +53,14 @@ ok($Collator->cmp("", "perl"), -1);
 
 ##############
 
-my $A_acute = pack('U', 0x00C1);
-my $a_acute = pack('U', 0x00E1);
+# Use pack('U'), not chr(), for Perl 5.6.1.
+my $A_acute = pack('U', $IsEBCDIC ? 0x65 : 0xC1);
+my $a_acute = pack('U', $IsEBCDIC ? 0x45 : 0xE1);
 my $acute   = pack('U', 0x0301);
 
 ok($Collator->cmp("A$acute", $A_acute), 0); # @version 3.1.1 (prev: -1)
 ok($Collator->cmp($a_acute, $A_acute), -1);
-ok($Collator->eq("A\cA$acute", $A_acute)); # UCA v9
+ok($Collator->eq("A\cA$acute", $A_acute)); # UCA v9. \cA is invariant.
 
 my %old_level = $Collator->change(level => 1);
 ok($Collator->eq("A$acute", $A_acute));
@@ -75,7 +78,7 @@ ok($Collator->lt($a_acute, $A_acute));
 
 eval { require Unicode::Normalize };
 
-if (!$@) {
+if (!$@ && !$IsEBCDIC) {
   my $NFD = Unicode::Collate->new(
     table => undef,
     entry => <<'ENTRIES',
@@ -112,12 +115,11 @@ my $trad = Unicode::Collate->new(
   entry => << 'ENTRIES',
  0063 0068 ; [.0A3F.0020.0002.0063] % "ch" in traditional Spanish
  0043 0068 ; [.0A3F.0020.0008.0043] # "Ch" in traditional Spanish
- 00DF ; [.0BA7.0020.0004.00DF][.0000.0153.0004.00DF][.0BA7.0020.001F.00DF] # sz
 ENTRIES
 );
 # 0063  ; [.0A3D.0020.0002.0063] # LATIN SMALL LETTER C
 # 0064  ; [.0A49.0020.0002.0064] # LATIN SMALL LETTER D
-# 0073  ; [.0BA7.0020.0002.0073] # LATIN SMALL LETTER S
+# Deutsch sz is included in 'keys.txt';
 
 ok(
   join(':', $trad->sort( qw/ acha aca ada acia acka / ) ),
@@ -129,7 +131,7 @@ ok(
   join(':',                  qw/ aca acha acia acka ada / ),
 );
 ok($trad->eq("ocho", "oc\cAho")); # UCA v9
-ok($trad->eq("ocho", "oc\000\cA\000\x7Fho")); # UCA v9
+ok($trad->eq("ocho", "oc\0\cA\0\cBho")); # UCA v9
 
 my $hiragana = "\x{3042}\x{3044}";
 my $katakana = "\x{30A2}\x{30A4}";
@@ -238,92 +240,6 @@ ok($undefAE ->gt("edge","fog"));
 ok($Collator->lt("edge","fog"));
 ok($undefAE ->gt("lake","like"));
 ok($Collator->lt("lake","like"));
-
-##############
-
-$Collator->change(level => 2);
-
-my $str;
-
-my $orig = "This is a Perl book.";
-my $sub = "PERL";
-my $rep = "camel";
-my $ret = "This is a camel book.";
-
-$str = $orig;
-if (my($pos,$len) = $Collator->index($str, $sub)) {
-  substr($str, $pos, $len, $rep);
-}
-
-ok($str, $ret);
-
-$Collator->change(%old_level);
-
-$str = $orig;
-if (my($pos,$len) = $Collator->index($str, $sub)) {
-  substr($str, $pos, $len, $rep);
-}
-
-ok($str, $orig);
-
-##############
-
-my $match;
-
-$Collator->change(level => 1);
-
-$str = "Pe\x{300}rl";
-$sub = "pe";
-$match = undef;
-if (my($pos, $len) = $Collator->index($str, $sub)) {
-    $match = substr($str, $pos, $len);
-}
-ok($match, "Pe\x{300}");
-
-$str = "P\x{300}e\x{300}\x{301}\x{303}rl";
-$sub = "pE";
-$match = undef;
-if (my($pos, $len) = $Collator->index($str, $sub)) {
-    $match = substr($str, $pos, $len);
-}
-ok($match, "P\x{300}e\x{300}\x{301}\x{303}");
-
-$Collator->change(%old_level);
-
-##############
-
-%old_level = $trad->change(level => 1);
-
-$str = "Ich mu\x{00DF} studieren.";
-$sub = "m\x{00FC}ss";
-$match = undef;
-if (my($pos, $len) = $trad->index($str, $sub)) {
-    $match = substr($str, $pos, $len);
-}
-ok($match, "mu\x{00DF}");
-
-$trad->change(%old_level);
-
-$str = "Ich mu\x{00DF} studieren.";
-$sub = "m\x{00FC}ss";
-$match = undef;
-
-if (my($pos, $len) = $trad->index($str, $sub)) {
-    $match = substr($str, $pos, $len);
-}
-ok($match, undef);
-
-$match = undef;
-if (my($pos,$len) = $Collator->index("", "")) {
-    $match = substr("", $pos, $len);
-}
-ok($match, "");
-
-$match = undef;
-if (my($pos,$len) = $Collator->index("", "abc")) {
-    $match = substr("", $pos, $len);
-}
-ok($match, undef);
 
 ##############
 
@@ -535,7 +451,8 @@ my %old_rearrange = $Collator->change(rearrange => undef);
 ok($Collator->gt("\x{0E41}A", "\x{0E40}B"));
 ok($Collator->gt("A\x{0E41}A", "A\x{0E40}B"));
 
-$Collator->change(rearrange => [ 0x61 ]); # 'a'
+$Collator->change(rearrange => [ 0x61 ]);
+ # U+0061, 'a': This is a Unicode value, never a native value.
 
 ok($Collator->gt("ab", "AB")); # as 'ba' > 'AB'
 
@@ -625,7 +542,6 @@ ok($backLevel2->gt("ca\x{300}ca\x{302}", "Ca\x{302}ca\x{300}"));
 ok($Collator  ->lt("Ca\x{300}ca\x{302}", "ca\x{302}ca\x{300}"));
 ok($Collator  ->lt("ca\x{300}ca\x{302}", "Ca\x{302}ca\x{300}"));
 
-
 # HIRAGANA and KATAKANA are made undefined via undefName.
 # So they are after CJK Unified Ideographs.
 
@@ -641,9 +557,13 @@ ok($Collator  ->gt("\x{4E03}", $katakana));
 ok($Collator->eq("?\x{300}!\x{301}\x{315}", "?!"));
 ok($Collator->eq("?\x{300}A\x{300}", "?A\x{300}"));
 ok($Collator->eq("?\x{300}", "?"));
+ok($Collator->eq("?\x{344}", "?")); # U+0344 has two CEs.
 
 $Collator->change(alternate => 'Non-ignorable');
 
 ok($Collator->gt("?\x{300}", "?"));
 
 $Collator->change(alternate => 'Shifted');
+
+
+

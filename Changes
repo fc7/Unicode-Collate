@@ -1,5 +1,12 @@
 Revision history for Perl extension Unicode::Collate.
 
+0.22  Mon Sep 02 23:15:14 2002
+    - New File: index.t.
+      (The new test.t excludes tests for index.)
+    - tweak on index(). POSITION is supported.
+    - add match, gmatch, subst, gsubst methods.
+    - fix: ignorable after variable in 'shift'-variable weight.
+
 0.21  Sat Aug 03 10:24:00 2002
     - upgrade keys.txt and t/test.t for UCA Version 9.
 

@@ -3,5 +3,6 @@ Makefile.PL
 MANIFEST
 README
 keys.txt
+t/index.t
 t/test.t
 Collate.pm
