@@ -15,7 +15,7 @@ BEGIN {
 }
 
 use Test;
-BEGIN { plan tests => 200 };
+BEGIN { plan tests => 196 };
 
 use strict;
 use warnings;
@@ -23,14 +23,9 @@ use Unicode::Collate;
 
 our $IsEBCDIC = ord("A") != 0x41;
 
+ok(1);
+
 #########################
-
-ok(1); # If we made it this far, we're ok.
-
-my $UCA_Version = "9";
-
-ok(Unicode::Collate::UCA_Version, $UCA_Version);
-ok(Unicode::Collate->UCA_Version, $UCA_Version);
 
 my $Collator = Unicode::Collate->new(
   table => 'keys.txt',
@@ -39,8 +34,6 @@ my $Collator = Unicode::Collate->new(
 
 ok(ref $Collator, "Unicode::Collate");
 
-ok($Collator->UCA_Version,   $UCA_Version);
-ok($Collator->UCA_Version(), $UCA_Version);
 
 ok(
   join(':', $Collator->sort( 

@@ -5,6 +5,10 @@ README
 Collate.pm
 Collate/keys.txt
 t/contract.t
-t/index.t
+t/hangtype.t
 t/hangul.t
+t/index.t
 t/test.t
+t/trailwt.t
+t/variable.t
+t/version.t
