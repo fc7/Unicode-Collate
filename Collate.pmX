@@ -15,15 +15,18 @@ use File::Spec;
 no warnings 'utf8';
 
 require Exporter;
+require DynaLoader;
 
 our $VERSION = '0.31';
 our $PACKAGE = __PACKAGE__;
 
-our @ISA = qw(Exporter);
+our @ISA = qw(Exporter DynaLoader);
 
 our %EXPORT_TAGS = ();
 our @EXPORT_OK = ();
 our @EXPORT = ();
+
+bootstrap Unicode::Collate $VERSION;
 
 (our $Path = $INC{'Unicode/Collate.pm'}) =~ s/\.pm$//;
 our $KeyFile = "allkeys.txt";
@@ -45,9 +48,6 @@ use constant MaxLevel => 4;
 # Minimum weights at level 2 and 3, respectively
 use constant Min2Wt => 0x20;
 use constant Min3Wt => 0x02;
-
-# Shifted weight at 4th level
-use constant Shift4Wt => 0xFFFF;
 
 # Variable weight at 1st level.
 # This is a negative value but should be regarded as zero on collation.
@@ -85,19 +85,6 @@ use constant NON_VAR => 0; # Non-Variable character
 use constant VAR     => 1; # Variable character
 
 # specific code points
-use constant Hangul_LBase  => 0x1100;
-use constant Hangul_LIni   => 0x1100;
-use constant Hangul_LFin   => 0x1159;
-use constant Hangul_LFill  => 0x115F;
-use constant Hangul_VBase  => 0x1161;
-use constant Hangul_VIni   => 0x1160;
-use constant Hangul_VFin   => 0x11A2;
-use constant Hangul_TBase  => 0x11A7;
-use constant Hangul_TIni   => 0x11A8;
-use constant Hangul_TFin   => 0x11F9;
-use constant Hangul_TCount => 28;
-use constant Hangul_NCount => 588;
-use constant Hangul_SBase  => 0xAC00;
 use constant Hangul_SIni   => 0xAC00;
 use constant Hangul_SFin   => 0xD7A3;
 use constant CJK_UidIni    => 0x4E00;
@@ -120,10 +107,6 @@ sub Base_Unicode_Version { "4.0" }
 
 sub pack_U {
     return pack('U*', @_);
-}
-
-sub unpack_U {
-    return unpack('U*', pack('U*').shift);
 }
 
 ######
@@ -406,43 +389,11 @@ sub parseEntry
 }
 
 
-##
-## arrayref[weights] = varCE(VCE)
-##
-sub varCE
-{
-    my $self = shift;
-    my($var, @wt) = unpack(VCE_TEMPLATE, shift);
-
-    $self->{variable} eq 'blanked' ?
-	$var ? [Var1Wt, 0, 0, $wt[3]] : \@wt :
-    $self->{variable} eq 'non-ignorable' ?
-	\@wt :
-    $self->{variable} eq 'shifted' ?
-	$var ? [Var1Wt, 0, 0, $wt[0] ]
-	     : [ @wt[0..2], $wt[0]+$wt[1]+$wt[2] ? Shift4Wt : 0 ] :
-    $self->{variable} eq 'shift-trimmed' ?
-	$var ? [Var1Wt, 0, 0, $wt[0] ] : [ @wt[0..2], 0 ] :
-	croak "$PACKAGE unknown variable name: $self->{variable}";
-}
 
 sub viewSortKey
 {
     my $self = shift;
     $self->visualizeSortKey($self->getSortKey(@_));
-}
-
-sub visualizeSortKey
-{
-    my $self = shift;
-    my $view = join " ", map sprintf("%04X", $_), unpack(KEY_TEMPLATE, shift);
-
-    if ($self->{UCA_Version} <= 8) {
-	$view =~ s/ ?0000 ?/|/g;
-    } else {
-	$view =~ s/\b0000\b/|/g;
-    }
-    return "[$view]";
 }
 
 
@@ -640,7 +591,6 @@ sub getWt
 sub getSortKey
 {
     my $self = shift;
-    my $lev  = $self->{level};
     my $rEnt = $self->splitEnt(shift); # get an arrayref of JCPS
     my $ver9 = $self->{UCA_Version} >= 9;
     my $v2i  = $self->{variable} ne 'non-ignorable';
@@ -687,40 +637,7 @@ sub getSortKey
 	push @buf, $wt;
     }
 
-    # make sort key
-    my @ret = ([],[],[],[]);
-    foreach my $v (0..$lev-1) {
-	foreach my $b (@buf) {
-	    push @{ $ret[$v] }, $b->[$v]
-		if 0 < $b->[$v];
-	}
-    }
-
-    # modification of tertiary weights
-    if ($self->{upper_before_lower}) {
-	foreach (@{ $ret[2] }) {
-	    if    (0x8 <= $_ && $_ <= 0xC) { $_ -= 6 } # lower
-	    elsif (0x2 <= $_ && $_ <= 0x6) { $_ += 6 } # upper
-	    elsif ($_ == 0x1C)             { $_ += 1 } # square upper
-	    elsif ($_ == 0x1D)             { $_ -= 1 } # square lower
-	}
-    }
-    if ($self->{katakana_before_hiragana}) {
-	foreach (@{ $ret[2] }) {
-	    if    (0x0F <= $_ && $_ <= 0x13) { $_ -= 2 } # katakana
-	    elsif (0x0D <= $_ && $_ <= 0x0E) { $_ += 5 } # hiragana
-	}
-    }
-
-    if ($self->{backwardsFlag}) {
-	for (my $v = MinLevel; $v <= MaxLevel; $v++) {
-	    if ($self->{backwardsFlag} & (1 << $v)) {
-		@{ $ret[$v-1] } = reverse @{ $ret[$v-1] };
-	    }
-	}
-    }
-
-    join LEVEL_SEP, map pack(KEY_TEMPLATE, @$_), @ret;
+    return $self->mk_SortKey(\@buf);
 }
 
 
@@ -747,81 +664,10 @@ sub sort {
 }
 
 
-sub _derivCE_9 {
-    my $u = shift;
-    my $base =
-	(CJK_UidIni  <= $u && $u <= CJK_UidFin)
-	    ? 0xFB40 : # CJK
-	(CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
-	 CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
-	    ? 0xFB80   # CJK ext.
-	    : 0xFBC0;  # others
-
-    my $aaaa = $base + ($u >> 15);
-    my $bbbb = ($u & 0x7FFF) | 0x8000;
-    return
-	pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
-	pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
-}
-
-sub _derivCE_8 {
-    my $code = shift;
-    my $aaaa =  0xFF80 + ($code >> 15);
-    my $bbbb = ($code & 0x7FFF) | 0x8000;
-    return
-	pack(VCE_TEMPLATE, NON_VAR, $aaaa, 2, 1, $code),
-	pack(VCE_TEMPLATE, NON_VAR, $bbbb, 0, 0, $code);
-}
-
-
 sub varCE_HangulTerm {
     my $self = shift;
     return $self->varCE(pack(VCE_TEMPLATE,
 	NON_VAR, $self->{hangul_terminator}, 0,0,0));
-}
-
-
-##
-## "hhhh hhhh hhhh" to (dddd, dddd, dddd)
-##
-sub _getHexArray { map hex, $_[0] =~ /([0-9a-fA-F]+)/g }
-
-#
-# $code *must* be in Hangul syllable.
-# Check it before you enter here.
-#
-sub _decompHangul {
-    my $code = shift;
-    my $SIndex = $code - Hangul_SBase;
-    my $LIndex = int( $SIndex / Hangul_NCount);
-    my $VIndex = int(($SIndex % Hangul_NCount) / Hangul_TCount);
-    my $TIndex =      $SIndex % Hangul_TCount;
-    return (
-	Hangul_LBase + $LIndex,
-	Hangul_VBase + $VIndex,
-	$TIndex ? (Hangul_TBase + $TIndex) : (),
-    );
-}
-
-sub _isIllegal {
-    my $code = shift;
-    return ! defined $code                      # removed
-	|| ($code < 0 || 0x10FFFF < $code)      # out of range
-	|| (($code & 0xFFFE) == 0xFFFE)         # ??FFF[EF] (cf. utf8.c)
-	|| (0xD800 <= $code && $code <= 0xDFFF) # unpaired surrogates
-	|| (0xFDD0 <= $code && $code <= 0xFDEF) # other non-characters
-    ;
-}
-
-# Hangul Syllable Type
-sub getHST {
-    my $u = shift;
-    return
-	Hangul_LIni <= $u && $u <= Hangul_LFin || $u == Hangul_LFill ? "L" :
-	Hangul_VIni <= $u && $u <= Hangul_VFin	     ? "V" :
-	Hangul_TIni <= $u && $u <= Hangul_TFin	     ? "T" :
-	Hangul_SIni <= $u && $u <= Hangul_SFin ?
-	    ($u - Hangul_SBase) % Hangul_TCount ? "LVT" : "LV" : "";
 }
 
 

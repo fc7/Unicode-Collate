@@ -3,11 +3,11 @@ README
 Makefile.PL
 disableXS
 enableXS
-MANIFEST	MANIFEST for No-XSUB
-MANIFEST.X	MANIFEST for XSUB
-Collate.pm	.pm for No-XSUB
-Collate.pmX	.pm for XSUB
-Collate.xsX	.xs for XSUB
+MANIFEST	MANIFEST for XSUB
+MANIFEST.N	MANIFEST for No-XSUB
+Collate.pm	.pm for XSUB
+Collate.xs	.xs for XSUB
+Collate.pmN	.pm for No-XSUB
 Collate/keys.txt
 t/contract.t
 t/hangtype.t
