@@ -1,8 +1,16 @@
 Revision history for Perl module Unicode::Collate.
 
+0.30  Mon Oct 13 21:26:37 2003
+    - fix: Completely ignorable in table should be able to be overrided
+      by non-ignorable in entry.
+    - fix: Maximum length for contraction must not be shortened
+      by a shorter contraction following.
+    - added normal.t.
+    - some doc fixes
+
 0.29  Mon Oct 13 12:18:23 2003
     - supported hangul_terminator.
-    - Base_Unicode_Version falsely returns Perl's Unicode version.
+    - fix: Base_Unicode_Version falsely returns Perl's Unicode version.
       C4 in UTS #10 requires UTS's Unicode version.
     - For variable weighting, 'variable' is recommended
       and 'alternate' is deprecated.

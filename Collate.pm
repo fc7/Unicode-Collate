@@ -14,7 +14,7 @@ use File::Spec;
 
 require Exporter;
 
-our $VERSION = '0.29';
+our $VERSION = '0.30';
 our $PACKAGE = __PACKAGE__;
 
 our @ISA = qw(Exporter);
@@ -139,7 +139,7 @@ our @ChangeOK = qw/
   /;
 
 our @ChangeNG = qw/
-    entry entries table maxlength
+    entry mapping table maxlength
     ignoreChar ignoreName undefChar undefName variableTable
     versionTable alternateTable backwardsTable forwardsTable rearrangeTable
     derivCode normCode rearrangeHash L3_ignorable
@@ -148,6 +148,7 @@ our @ChangeNG = qw/
 # The hash key 'ignored' is deleted at v 0.21.
 # The hash key 'isShift' is deleted at v 0.23.
 # The hash key 'combining' is deleted at v 0.24.
+# The hash key 'entries' is deleted at v 0.30.
 
 sub version {
     my $self = shift;
@@ -248,7 +249,10 @@ sub checkCollator {
 
 	$CVgetCombinClass ||= \&Unicode::Normalize::getCombinClass;
 
-	if ($self->{normalization} ne 'prenormalized') {
+	if ($self->{normalization} =~ /^(?:NF)D\z/) { # tweak for default
+	    $self->{normCode} = \&Unicode::Normalize::NFD;
+	}
+	elsif ($self->{normalization} ne 'prenormalized') {
 	    my $norm = $self->{normalization};
 	    $self->{normCode} = sub {
 		Unicode::Normalize::normalize($norm, shift);
@@ -385,14 +389,18 @@ sub parseEntry
 	# if and only if "all" CEs are [.0000.0000.0000].
     }
 
-    $self->{entries}{$entry} = \@key;
+    $self->{mapping}{$entry} = \@key;
 
-    $self->{L3_ignorable}{$uv[0]} = TRUE
-	if @uv == 1 && $is_L3_ignorable;
-
-    # Contraction is to be considered in the range of this maxlength.
-    $self->{maxlength}{$uv[0]} = scalar @uv
-	if @uv > 1;
+    if (@uv > 1) {
+	(!$self->{maxlength}{$uv[0]} || $self->{maxlength}{$uv[0]} < @uv)
+	    and $self->{maxlength}{$uv[0]} = @uv;
+    }
+    else {
+	$is_L3_ignorable
+	    ? ($self->{L3_ignorable}{$uv[0]} = TRUE)
+	    : ($self->{L3_ignorable}{$uv[0]} and
+	       $self->{L3_ignorable}{$uv[0]} = FALSE); # &&= stores key.
+    }
 }
 
 
@@ -437,17 +445,17 @@ sub visualizeSortKey
 
 
 ##
-## arrayref of JCPS   = splitCE(string to be collated)
-## arrayref of arrayref[JCPS, ini_pos, fin_pos] = splitCE(string, true)
+## arrayref of JCPS   = splitEnt(string to be collated)
+## arrayref of arrayref[JCPS, ini_pos, fin_pos] = splitEnt(string, true)
 ##
-sub splitCE
+sub splitEnt
 {
     my $self = shift;
     my $wLen = $_[1];
 
     my $code = $self->{preprocess};
     my $norm = $self->{normCode};
-    my $ent  = $self->{entries};
+    my $map  = $self->{mapping};
     my $max  = $self->{maxlength};
     my $reH  = $self->{rearrangeHash};
     my $ign  = $self->{L3_ignorable};
@@ -494,19 +502,19 @@ sub splitCE
 	next if _isNonCharacter($src[$i]);
 
 	my $i_orig = $i;
-	my $ce = $src[$i];
+	my $jcps = $src[$i];
 
-	if ($max->{$ce}) { # contract
-	    my $temp_ce = $ce;
-	    my $ceLen = 1;
-	    my $maxLen = $max->{$ce};
+	if ($max->{$jcps}) { # contract
+	    my $temp_jcps = $jcps;
+	    my $jcpsLen = 1;
+	    my $maxLen = $max->{$jcps};
 
-	    for (my $p = $i + 1; $ceLen < $maxLen && $p < @src; $p++) {
+	    for (my $p = $i + 1; $jcpsLen < $maxLen && $p < @src; $p++) {
 		next if ! defined $src[$p];
-		$temp_ce .= CODE_SEP . $src[$p];
-		$ceLen++;
-		if ($ent->{$temp_ce}) {
-		    $ce = $temp_ce;
+		$temp_jcps .= CODE_SEP . $src[$p];
+		$jcpsLen++;
+		if ($map->{$temp_jcps}) {
+		    $jcps = $temp_jcps;
 		    $i = $p;
 		}
 	    }
@@ -529,8 +537,8 @@ sub splitCE
 		    $curCC = $CVgetCombinClass->($src[$p]);
 		    last unless $curCC;
 		    my $tail = CODE_SEP . $src[$p];
-		    if ($preCC != $curCC && $ent->{$ce.$tail}) {
-			$ce .= $tail;
+		    if ($preCC != $curCC && $map->{$jcps.$tail}) {
+			$jcps .= $tail;
 			$src[$p] = undef;
 		    } else {
 			$preCC = $curCC;
@@ -546,7 +554,7 @@ sub splitCE
 	    }
 	}
 
-	push @buf, $wLen ? [$ce, $i_orig, $i + 1] : $ce;
+	push @buf, $wLen ? [$jcps, $i_orig, $i + 1] : $jcps;
     }
     return \@buf;
 }
@@ -558,17 +566,15 @@ sub splitCE
 sub getWt
 {
     my $self = shift;
-    my $ce   = shift;
-    my $ent  = $self->{entries};
+    my $u    = shift;
+    my $map  = $self->{mapping};
     my $der  = $self->{derivCode};
 
-    return if !defined $ce;
-    return map($self->varCE($_), @{ $ent->{$ce} })
-	if $ent->{$ce};
+    return if !defined $u;
+    return map($self->varCE($_), @{ $map->{$u} })
+	if $map->{$u};
 
-    # CE must not be a contraction, then it's a code point.
-    my $u = $ce;
-
+    # JCPS must not be a contraction, then it's a code point.
     if (Hangul_SIni <= $u && $u <= Hangul_SFin) {
 	my $hang = $self->{overrideHangul};
 	my @hangulCE;
@@ -584,27 +590,27 @@ sub getWt
 
 	    if (@decH == 2) {
 		my $contract = join(CODE_SEP, @decH);
-		@decH = ($contract) if $ent->{$contract};
+		@decH = ($contract) if $map->{$contract};
 	    } else { # must be <@decH == 3>
 		if ($max->{$decH[0]}) {
 		    my $contract = join(CODE_SEP, @decH);
-		    if ($ent->{$contract}) {
+		    if ($map->{$contract}) {
 			@decH = ($contract);
 		    } else {
 			$contract = join(CODE_SEP, @decH[0,1]);
-			$ent->{$contract} and @decH = ($contract, $decH[2]);
+			$map->{$contract} and @decH = ($contract, $decH[2]);
 		    }
 		    # even if V's ignorable, LT contraction is not supported.
 		    # If such a situatution were required, NFD should be used.
 		}
 		if (@decH == 3 && $max->{$decH[1]}) {
 		    my $contract = join(CODE_SEP, @decH[1,2]);
-		    $ent->{$contract} and @decH = ($decH[0], $contract);
+		    $map->{$contract} and @decH = ($decH[0], $contract);
 		}
 	    }
 
 	    @hangulCE = map({
-		    $ent->{$_} ? @{ $ent->{$_} } : $der->($_);
+		    $map->{$_} ? @{ $map->{$_} } : $der->($_);
 		} @decH);
 	}
 	return map $self->varCE($_), @hangulCE;
@@ -633,7 +639,7 @@ sub getSortKey
 {
     my $self = shift;
     my $lev  = $self->{level};
-    my $rCE  = $self->splitCE(shift); # get an arrayref of JCPS
+    my $rEnt = $self->splitEnt(shift); # get an arrayref of JCPS
     my $ver9 = $self->{UCA_Version} >= 9;
     my $v2i  = $self->{variable} ne 'non-ignorable';
 
@@ -642,10 +648,10 @@ sub getSortKey
 
     if ($self->{hangul_terminator}) {
 	my $preHST = '';
-	foreach my $ce (@$rCE) {
+	foreach my $jcps (@$rEnt) {
 	    # weird things like VL, TL-contraction are not considered!
 	    my $curHST = '';
-	    foreach my $u (split /;/, $ce) {
+	    foreach my $u (split /;/, $jcps) {
 		$curHST .= getHST($u);
 	    }
 	    if ($preHST && !$curHST || # hangul before non-hangul
@@ -657,14 +663,14 @@ sub getSortKey
 	    }
 	    $preHST = $curHST;
 
-	    push @wts, $self->getWt($ce);
+	    push @wts, $self->getWt($jcps);
 	}
 	$preHST # end at hangul
 	    and push @wts, $self->varCE_HangulTerm;
     }
     else {
-	foreach my $ce (@$rCE) {
-	    push @wts, $self->getWt($ce);
+	foreach my $jcps (@$rEnt) {
+	    push @wts, $self->getWt($jcps);
 	}
     }
 
@@ -864,19 +870,19 @@ sub _eqArray($$$)
 ##
 sub index
 {
-    my $self  = shift;
-    my $str   = shift;
-    my $len   = length($str);
-    my $subCE = $self->splitCE(shift);
-    my $pos   = @_ ? shift : 0;
-       $pos   = 0 if $pos < 0;
-    my $grob  = shift;
+    my $self = shift;
+    my $str  = shift;
+    my $len  = length($str);
+    my $subE = $self->splitEnt(shift);
+    my $pos  = @_ ? shift : 0;
+       $pos  = 0 if $pos < 0;
+    my $grob = shift;
 
-    my $lev   = $self->{level};
-    my $ver9  = $self->{UCA_Version} >= 9;
-    my $v2i   = $self->{variable} ne 'non-ignorable';
+    my $lev  = $self->{level};
+    my $ver9 = $self->{UCA_Version} >= 9;
+    my $v2i  = $self->{variable} ne 'non-ignorable';
 
-    if (! @$subCE) {
+    if (! @$subE) {
 	my $temp = $pos <= 0 ? 0 : $len <= $pos ? $len : $pos;
 	return $grob
 	    ? map([$_, 0], $temp..$len)
@@ -885,15 +891,15 @@ sub index
     if ($len < $pos) {
 	return wantarray ? () : NOMATCHPOS;
     }
-    my $strCE = $self->splitCE($pos ? substr($str, $pos) : $str, TRUE);
-    if (! @$strCE) {
+    my $strE = $self->splitEnt($pos ? substr($str, $pos) : $str, TRUE);
+    if (! @$strE) {
 	return wantarray ? () : NOMATCHPOS;
     }
     my $last_is_variable;
     my(@strWt, @iniPos, @finPos, @subWt, @g_ret);
 
     $last_is_variable = FALSE;
-    for my $wt (map $self->getWt($_), @$subCE) {
+    for my $wt (map $self->getWt($_), @$subE) {
 	my $to_be_pushed = _nonIgnorAtLevel($wt,$lev);
 
 	if ($v2i && $ver9) {
@@ -913,7 +919,7 @@ sub index
     }
 
     my $count = 0;
-    my $end = @$strCE - 1;
+    my $end = @$strE - 1;
 
     $last_is_variable = FALSE;
 
@@ -922,7 +928,7 @@ sub index
 
 	# fetch a grapheme
 	while ($i <= $end && $found_base == 0) {
-	    for my $wt ($self->getWt($strCE->[$i][0])) {
+	    for my $wt ($self->getWt($strE->[$i][0])) {
 		my $to_be_pushed = _nonIgnorAtLevel($wt,$lev);
 
 		if ($v2i && $ver9) {
@@ -935,13 +941,13 @@ sub index
 
 		if (@strWt && $wt->[0] == 0) {
 		    push @{ $strWt[-1] }, $wt if $to_be_pushed;
-		    $finPos[-1] = $strCE->[$i][2];
+		    $finPos[-1] = $strE->[$i][2];
 		} elsif ($to_be_pushed) {
 		    $wt->[0] = 0 if $wt->[0] == Var1Wt;
 		    push @strWt,  [ $wt ];
-		    push @iniPos, $found_base ? NOMATCHPOS : $strCE->[$i][1];
+		    push @iniPos, $found_base ? NOMATCHPOS : $strE->[$i][1];
 		    $finPos[-1] = NOMATCHPOS if $found_base;
-		    push @finPos, $strCE->[$i][2];
+		    push @finPos, $strE->[$i][2];
 		    $found_base++;
 		}
 		# else ===> no-op
@@ -1087,7 +1093,7 @@ The C<new> method returns a collator object.
 
    $Collator = Unicode::Collate->new(
       UCA_Version => $UCA_Version,
-      alternate => $alternate,
+      alternate => $alternate, # deprecated: use of 'variable' is recommended.
       backwards => $levelNumber, # or \@levelNumbers
       entry => $element,
       hangul_terminator => $term_primary_weight,
@@ -1133,7 +1139,10 @@ If omitted, forwards at all the levels.
 
 -- see 3.1 Linguistic Features; 3.2.1 File Format, UTS #10.
 
-Overrides a default order or defines additional collation elements
+If the same character (or a sequence of characters) exists
+in the collation element table through C<table>,
+mapping to collation elements is overrided.
+If it does not exist, the mapping is defined additionally.
 
   entry => <<'ENTRIES', # use the UCA file format
 00E6 ; [.0861.0020.0002.00E6] [.08B1.0020.0002.00E6] # ligature <ae> as <a><e>
@@ -1161,10 +1170,18 @@ Boundaries of Hangul syllables are determined
 according to conjoining Jamo behavior in F<the Unicode Standard>
 and F<HangulSyllableType.txt>.
 
-B<Implementation Note:> Addition of a terminator primary weight is limited
-to a boundary between collation elements. Non-conjoining Hangul letters
+B<Implementation Note:>
+(1) For expansion mapping (Unicode character mapped
+to a sequence of collation elements), a terminator will not be added
+between collation elements, even if Hangul syllable boundary exists there.
+Addition of terminator is restricted to the next position
+to the last collation element.
+
+(2) Non-conjoining Hangul letters
 (Compatibility Jamo, halfwidth Jamo, and enclosed letters) are not
 automatically terminated with a terminator primary weight.
+These characters may need terminator included in a collation element
+table beforehand.
 
 =item ignoreName
 
@@ -1325,7 +1342,7 @@ but it is not warned at present.>
 
 -- see 3.2 Default Unicode Collation Element Table, UTS #10.
 
-You can use another element table if desired.
+You can use another collation element table if desired.
 The table file must be put into a directory
 where F<Unicode/Collate.pm> is installed.
 E.g. in F<perl/lib/Unicode/Collate> directory
