@@ -1,7 +1,7 @@
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    'INSTALLDIRS' => $] > 5.007 ? 'perl' : 'site', # XXXXXXXXXXXXX
+    'INSTALLDIRS' => $] > 5.007 ? 'perl' : 'site',
     'NAME'		=> 'Unicode::Collate',
     'VERSION_FROM'	=> 'Collate.pm', # finds $VERSION
     'PREREQ_PM'		=> {}, # e.g., Module::Name => 1.1

@@ -1,7 +1,8 @@
 
 BEGIN {
-    if (ord("A") == 193) {
-	print "1..0 # Unicode::Collate not ported to EBCDIC\n";
+    unless ("A" eq pack('U', 0x41) || "A" eq pack('U', ord("A"))) {
+	print "1..0 # Unicode::Collate " .
+	    "cannot stringify a Unicode code point\n";
 	exit 0;
     }
 }
@@ -9,7 +10,7 @@ BEGIN {
 BEGIN {
     if ($ENV{PERL_CORE}) {
         chdir('t') if -d 't';
-        @INC = qw(../lib);
+        @INC = $^O eq 'MacOS' ? qw(::lib) : qw(../lib);
     }
 }
 
