@@ -372,9 +372,9 @@ _varCE (vbl, vce)
     /* variable: checked only the first char and the length,
        trusting checkCollator() and %VariableOK in Perl ... */
 
-    if (vlen < VCE_Length) /* ignore short VCE (unexpected) */
-	1;
-    if (*a == 'n') /* 'non-ignorable' */
+    if (vlen < VCE_Length /* ignore short VCE (unexpected) */
+	||
+	*a == 'n') /* 'non-ignorable' */
 	1;
     else if (*v) {
 	if (*a == 's') { /* shifted or shift-trimmed */
@@ -472,11 +472,14 @@ unpack_U (src)
     U8 *s, *p, *e;
     UV uv;
   PPCODE:
-    if (!SvUTF8(src)) {
-	src = sv_mortalcopy(src);
-	sv_utf8_upgrade(src);
-    }
     s = (U8*)SvPV(src,srclen);
+    if (!SvUTF8(src)) {
+	SV* tmpsv = sv_mortalcopy(src);
+	if (!SvPOK(tmpsv))
+	    (void)sv_pvn_force(tmpsv,&srclen);
+	sv_utf8_upgrade(tmpsv);
+	s = (U8*)SvPV(tmpsv,srclen);
+    }
     e = s + srclen;
 
     for (p = s; p < e; p += retlen) {
