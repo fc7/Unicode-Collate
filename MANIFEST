@@ -1,0 +1,7 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+keys.txt
+t/test.t
+Collate.pm
