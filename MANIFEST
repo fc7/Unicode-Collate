@@ -2,7 +2,7 @@ Changes
 Makefile.PL
 MANIFEST
 README
-keys.txt
+Collate.pm
+Collate/keys.txt
 t/index.t
 t/test.t
-Collate.pm
