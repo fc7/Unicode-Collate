@@ -1,5 +1,8 @@
 Revision history for Perl module Unicode::Collate.
 
+0.33  Sat Dec 13 14:07:27 2003
+    - documentation improvement: in "entry", "overrideHangul", etc.
+
 0.32  Wed Dec  3 23:38:18 2003
     - A matching part from index(), match() etc. will include illegal
       code points (as well as ignorable characters) following a grapheme.

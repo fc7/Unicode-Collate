@@ -17,7 +17,7 @@ no warnings 'utf8';
 require Exporter;
 require DynaLoader;
 
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 our $PACKAGE = __PACKAGE__;
 
 our @ISA = qw(Exporter DynaLoader);
@@ -978,16 +978,42 @@ in the collation element table through C<table>,
 mapping to collation elements is overrided.
 If it does not exist, the mapping is defined additionally.
 
-  entry => <<'ENTRIES', # use the UCA file format
-00E6 ; [.0861.0020.0002.00E6] [.08B1.0020.0002.00E6] # ligature <ae> as <a><e>
-0063 0068 ; [.0893.0020.0002.0063]      # "ch" in traditional Spanish
-0043 0068 ; [.0893.0020.0008.0043]      # "Ch" in traditional Spanish
-ENTRIES
+    entry => <<'ENTRY', # for DUCET v4.0.0 (allkeys-4.0.0.txt)
+0063 0068 ; [.0E6A.0020.0002.0063] # ch
+0043 0068 ; [.0E6A.0020.0007.0043] # Ch
+0043 0048 ; [.0E6A.0020.0008.0043] # CH
+006C 006C ; [.0F4C.0020.0002.006C] # ll
+004C 006C ; [.0F4C.0020.0007.004C] # Ll
+004C 004C ; [.0F4C.0020.0008.004C] # LL
+006E 0303 ; [.0F7B.0020.0002.006E] # n-tilde
+004E 0303 ; [.0F7B.0020.0008.004E] # N-tilde
+ENTRY
+
+    entry => <<'ENTRY', # for DUCET v4.0.0 (allkeys-4.0.0.txt)
+00E6 ; [.0E33.0020.0002.00E6][.0E8B.0020.0002.00E6] # ae ligature as <a><e>
+00C6 ; [.0E33.0020.0008.00C6][.0E8B.0020.0008.00C6] # AE ligature as <A><E>
+ENTRY
 
 B<NOTE:> The code point in the UCA file format (before C<';'>)
-B<must> be a Unicode code point, but not a native code point.
+B<must> be a Unicode code point (defined as hexadecimal),
+but not a native code point.
 So C<0063> must always denote C<U+0063>,
 but not a character of C<"\x63">.
+
+Weighting may vary depending on collation element table.
+So ensure the weights defined in C<entry> will be consistent with
+those in the collation element table loaded via C<table>.
+
+In DUCET v4.0.0, primary weight of C<C> is C<0E60>
+and that of C<D> is C<0E6D>. So setting primary weight of C<CH> to C<0E6A>
+(as a value between C<0E60> and C<0E6D>)
+makes ordering as C<C E<lt> CH E<lt> D>.
+Exactly speaking DUCET already has some characters between C<C> and C<D>:
+C<small capital C> (C<U+1D04>) with primary weight C<0E64>,
+C<c-hook/C-hook> (C<U+0188/U+0187>) with C<0E65>,
+and C<c-curl> (C<U+0255>) with C<0E69>.
+Then primary weight C<0E6A> for C<CH> makes C<CH>
+ordered between C<c-curl> and C<D>.
 
 =item hangul_terminator
 
@@ -1066,10 +1092,10 @@ though they are not concerned with C<Unicode::Normalize::normalize()>.
 If C<undef> (not a string C<"undef">) is passed explicitly
 as the value for this key,
 any normalization is not carried out (this may make tailoring easier
-if any normalization is not desired).
-Under C<(normalization =E<gt> undef)>, only contiguous contractions
-are resolved; e.g. C<A-cedilla-ring> would be primary equal to C<A>,
-even if C<A-ring> (and C<A-ring-cedilla>) is ordered after C<Z>.
+if any normalization is not desired). Under C<(normalization =E<gt> undef)>,
+only contiguous contractions are resolved;
+e.g. even if C<A-ring> (and C<A-ring-cedilla>) is ordered after C<Z>,
+C<A-cedilla-ring> would be primary equal to C<A>.
 In this point,
 C<(normalization =E<gt> undef, preprocess =E<gt> sub { NFD(shift) })>
 B<is not> equivalent to C<(normalization =E<gt> 'NFD')>.
@@ -1123,14 +1149,15 @@ in table or C<entry> is still valid.
 
 -- see 7.1 Derived Collation Elements, UTS #10.
 
-By default, Hangul Syllables are decomposed into Hangul Jamo.
+By default, Hangul Syllables are decomposed into Hangul Jamo,
+even if C<(normalization =E<gt> undef)>.
 But the mapping of Hangul Syllables may be overrided.
 
 This tag works like C<overrideCJK>, so see there for examples.
 
 If you want to override the mapping of Hangul Syllables,
-the Normalization Forms D and KD are not appropriate
-(they will be decomposed before overriding).
+NFD, NFKD, and FCD are not appropriate,
+since they will decompose Hangul Syllables before overriding.
 
 If C<undef> is passed explicitly as the value for this key,
 weight for Hangul Syllables is treated as undefined
@@ -1255,7 +1282,7 @@ By default (if specification is omitted), 'shifted' is adopted.
    'Blanked'        Variable elements are made ignorable at levels 1 through 3;
                     considered at the 4th level.
 
-   'Non-ignorable'  Variable elements are not reset to ignorable.
+   'Non-Ignorable'  Variable elements are not reset to ignorable.
 
    'Shifted'        Variable elements are made ignorable at levels 1 through 3
                     their level 4 weight is replaced by the old level 1 weight.
