@@ -1,22 +1,26 @@
 Changes
-README
-Makefile.PL
-disableXS
-enableXS
-MANIFEST	MANIFEST for No-XSUB
-MANIFEST.X	MANIFEST for XSUB
-Collate.pm	.pm for No-XSUB
-Collate.pmX	.pm for XSUB
-Collate.xsX	.xs for XSUB
+Collate.pm	perl module for NoXSUB (pure perl)
+Collate.pmX	# perl module for XSUB
+Collate.xsX	# extension for XSUB
 Collate/keys.txt
+disableXS	# perl script to disable XSUB
+enableXS	# perl script to enable XSUB
+Makefile.PL
+MANIFEST	MANIFEST for NoXSUB (pure perl)
+MANIFEST.X	# MANIFEST for XSUB
+META.yml	# meta file
+README
 t/altern.t
+t/cjkrange.t
 t/contract.t
 t/hangtype.t
 t/hangul.t
+t/ignor.t
 t/illegal.t
 t/illegalp.t
 t/index.t
 t/normal.t
+t/override.t
 t/rearrang.t
 t/test.t
 t/trailwt.t

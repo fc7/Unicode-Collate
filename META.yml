@@ -1,0 +1,16 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         Unicode-Collate
+version:      0.50
+version_from: Collate.pm
+installdirs:  perl
+requires:
+    Carp:                          0
+    constant:                      0
+    File::Spec:                    0
+    strict:                        0
+    Test:                          0
+    warnings:                      0
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.17

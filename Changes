@@ -1,5 +1,11 @@
 Revision history for Perl module Unicode::Collate.
 
+0.50  Sun May  8 20:26:39 2005
+    - Now UCA Revision 14 (based on Unicode 4.1.0).
+    - Some tests are modified.
+    - Added cjkrange.t, ignor.t, override.t.
+    - Added META.yml.
+
 0.40  Sat Apr 24 06:54:40 2004
     - Now a table file is searched in @INC.
 
