@@ -2,6 +2,7 @@ Changes
 Collate.pm	perl module for XSUB
 Collate.pmN	# perl module for NoXSUB (pure perl)
 Collate.xs	extension for XSUB
+Collate/allkeys.txt
 Collate/keys.txt
 disableXS	# perl script to disable XSUB
 enableXS	# perl script to enable XSUB
