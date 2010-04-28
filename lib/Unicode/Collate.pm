@@ -2,7 +2,7 @@ package Unicode::Collate;
 
 BEGIN {
     unless ("A" eq pack('U', 0x41)) {
-	die "Unicode::Collate cannot stringify a Unicode code point\n";
+    die "Unicode::Collate cannot stringify a Unicode code point\n";
     }
 }
 
@@ -11,14 +11,17 @@ use strict;
 use warnings;
 use Carp;
 use File::Spec;
+use GDBM_File;
+use Storable qw/thaw/;
 
 no warnings 'utf8';
 
-our $VERSION = '0.52';
+our $VERSION = '0.53';
 our $PACKAGE = __PACKAGE__;
 
 my @Path = qw(Unicode Collate);
-my $KeyFile = "allkeys.txt";
+# prefer pre-compiled version
+my $KeyFile = "allkeys.db";
 
 # Perl's boolean
 use constant TRUE  => 1;
@@ -153,20 +156,20 @@ sub change {
     my %hash = @_;
     my %old;
     if (exists $hash{variable} && exists $hash{alternate}) {
-	delete $hash{alternate};
+    delete $hash{alternate};
     }
     elsif (!exists $hash{variable} && exists $hash{alternate}) {
-	$hash{variable} = $hash{alternate};
+    $hash{variable} = $hash{alternate};
     }
     foreach my $k (keys %hash) {
-	if (exists $ChangeOK{$k}) {
-	    $old{$k} = $self->{$k};
-	    $self->{$k} = $hash{$k};
-	}
-	elsif (exists $ChangeNG{$k}) {
-	    croak "change of $k via change() is not allowed!";
-	}
-	# else => ignored
+    if (exists $ChangeOK{$k}) {
+        $old{$k} = $self->{$k};
+        $self->{$k} = $hash{$k};
+    }
+    elsif (exists $ChangeNG{$k}) {
+        croak "change of $k via change() is not allowed!";
+    }
+    # else => ignored
     }
     $self->checkCollator();
     return wantarray ? %old : $self;
@@ -176,11 +179,11 @@ sub _checkLevel {
     my $level = shift;
     my $key   = shift; # 'level' or 'backwards'
     MinLevel <= $level or croak sprintf
-	"Illegal level %d (in value for key '%s') lower than %d.",
-	    $level, $key, MinLevel;
+    "Illegal level %d (in value for key '%s') lower than %d.",
+        $level, $key, MinLevel;
     $level <= MaxLevel or croak sprintf
-	"Unsupported level %d (in value for key '%s') higher than %d.",
-	    $level, $key, MaxLevel;
+    "Unsupported level %d (in value for key '%s') higher than %d.",
+        $level, $key, MaxLevel;
 }
 
 my %DerivCode = (
@@ -195,63 +198,63 @@ sub checkCollator {
     _checkLevel($self->{level}, "level");
 
     $self->{derivCode} = $DerivCode{ $self->{UCA_Version} }
-	or croak "Illegal UCA version (passed $self->{UCA_Version}).";
+        or croak "Illegal UCA version (passed $self->{UCA_Version}).";
 
     $self->{variable} ||= $self->{alternate} || $self->{variableTable} ||
-				$self->{alternateTable} || 'shifted';
+                $self->{alternateTable} || 'shifted';
     $self->{variable} = $self->{alternate} = lc($self->{variable});
     exists $VariableOK{ $self->{variable} }
-	or croak "$PACKAGE unknown variable parameter name: $self->{variable}";
+        or croak "$PACKAGE unknown variable parameter name: $self->{variable}";
 
     if (! defined $self->{backwards}) {
-	$self->{backwardsFlag} = 0;
+        $self->{backwardsFlag} = 0;
     }
     elsif (! ref $self->{backwards}) {
-	_checkLevel($self->{backwards}, "backwards");
-	$self->{backwardsFlag} = 1 << $self->{backwards};
+        _checkLevel($self->{backwards}, "backwards");
+        $self->{backwardsFlag} = 1 << $self->{backwards};
     }
     else {
-	my %level;
-	$self->{backwardsFlag} = 0;
-	for my $b (@{ $self->{backwards} }) {
-	    _checkLevel($b, "backwards");
-	    $level{$b} = 1;
-	}
-	for my $v (sort keys %level) {
-	    $self->{backwardsFlag} += 1 << $v;
-	}
+        my %level;
+        $self->{backwardsFlag} = 0;
+        for my $b (@{ $self->{backwards} }) {
+            _checkLevel($b, "backwards");
+            $level{$b} = 1;
+        }
+        for my $v (sort keys %level) {
+            $self->{backwardsFlag} += 1 << $v;
+        }
     }
 
     defined $self->{rearrange} or $self->{rearrange} = [];
     ref $self->{rearrange}
-	or croak "$PACKAGE: list for rearrangement must be store in ARRAYREF";
+        or croak "$PACKAGE: list for rearrangement must be store in ARRAYREF";
 
     # keys of $self->{rearrangeHash} are $self->{rearrange}.
     $self->{rearrangeHash} = undef;
 
     if (@{ $self->{rearrange} }) {
-	@{ $self->{rearrangeHash} }{ @{ $self->{rearrange} } } = ();
+        @{ $self->{rearrangeHash} }{ @{ $self->{rearrange} } } = ();
     }
 
     $self->{normCode} = undef;
 
     if (defined $self->{normalization}) {
-	eval { require Unicode::Normalize };
-	$@ and croak "Unicode::Normalize is required to normalize strings";
+        eval { require Unicode::Normalize };
+        $@ and croak "Unicode::Normalize is required to normalize strings";
 
-	$CVgetCombinClass ||= \&Unicode::Normalize::getCombinClass;
+        $CVgetCombinClass ||= \&Unicode::Normalize::getCombinClass;
 
-	if ($self->{normalization} =~ /^(?:NF)D\z/) { # tweak for default
-	    $self->{normCode} = \&Unicode::Normalize::NFD;
-	}
-	elsif ($self->{normalization} ne 'prenormalized') {
-	    my $norm = $self->{normalization};
-	    $self->{normCode} = sub {
-		Unicode::Normalize::normalize($norm, shift);
-	    };
-	    eval { $self->{normCode}->("") }; # try
-	    $@ and croak "$PACKAGE unknown normalization form name: $norm";
-	}
+        if ($self->{normalization} =~ /^(?:NF)D\z/) { # tweak for default
+            $self->{normCode} = \&Unicode::Normalize::NFD;
+        }
+        elsif ($self->{normalization} ne 'prenormalized') {
+            my $norm = $self->{normalization};
+            $self->{normCode} = sub {
+                Unicode::Normalize::normalize($norm, shift);
+            };
+            eval { $self->{normCode}->("") }; # try
+            $@ and croak "$PACKAGE unknown normalization form name: $norm";
+        }
     }
     return;
 }
@@ -263,28 +266,37 @@ sub new
 
     # If undef is passed explicitly, no file is read.
     $self->{table} = $KeyFile if ! exists $self->{table};
-    $self->read_table() if defined $self->{table};
-
+    $self->{table_is_compiled} = TRUE
+        if ( defined $self->{table} and ( $self->{table} =~ /\.db$/ ) );
+    if (defined $self->{table}) {
+        if ($self->{table_is_compiled}) {
+            $self->read_compiled_table();
+        }
+        else {
+            $self->read_table();
+        }
+    }
     if ($self->{entry}) {
-	while ($self->{entry} =~ /([^\n]+)/g) {
-	    $self->parseEntry($1);
-	}
+        #print "parsing entries\n";
+        while ($self->{entry} =~ /([^\n]+)/g) {
+            $self->parseEntry($1);
+        }
     }
 
     $self->{level} ||= MaxLevel;
     $self->{UCA_Version} ||= UCA_Version();
 
     $self->{overrideHangul} = FALSE
-	if ! exists $self->{overrideHangul};
+        if ! exists $self->{overrideHangul};
     $self->{overrideCJK} = FALSE
-	if ! exists $self->{overrideCJK};
+        if ! exists $self->{overrideCJK};
     $self->{normalization} = 'NFD'
-	if ! exists $self->{normalization};
+        if ! exists $self->{normalization};
     $self->{rearrange} = $self->{rearrangeTable} ||
-	($self->{UCA_Version} <= 11 ? $DefaultRearrange : [])
-	if ! exists $self->{rearrange};
+        ($self->{UCA_Version} <= 11 ? $DefaultRearrange : [])
+        if ! exists $self->{rearrange};
     $self->{backwards} = $self->{backwardsTable}
-	if ! exists $self->{backwards};
+        if ! exists $self->{backwards};
 
     $self->checkCollator();
 
@@ -296,45 +308,96 @@ sub read_table {
 
     my($f, $fh);
     foreach my $d (@INC) {
-	$f = File::Spec->catfile($d, @Path, $self->{table});
-	last if open($fh, $f);
-	$f = undef;
+        $f = File::Spec->catfile($d, @Path, $self->{table});
+        last if open($fh, $f);
+        $f = undef;
     }
     if (!defined $f) {
-	$f = File::Spec->catfile(@Path, $self->{table});
-	croak("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
+        $f = File::Spec->catfile(@Path, $self->{table});
+        croak("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
     }
 
     while (my $line = <$fh>) {
-	next if $line =~ /^\s*#/;
-	unless ($line =~ s/^\s*\@//) {
-	    $self->parseEntry($line);
-	    next;
-	}
+        next if $line =~ /^\s*#/;
+        unless ($line =~ s/^\s*\@//) {
+            $self->parseEntry($line);
+            next;
+        }
 
-	# matched ^\s*\@
-	if ($line =~ /^version\s*(\S*)/) {
-	    $self->{versionTable} ||= $1;
-	}
-	elsif ($line =~ /^variable\s+(\S*)/) { # since UTS #10-9
-	    $self->{variableTable} ||= $1;
-	}
-	elsif ($line =~ /^alternate\s+(\S*)/) { # till UTS #10-8
-	    $self->{alternateTable} ||= $1;
-	}
-	elsif ($line =~ /^backwards\s+(\S*)/) {
-	    push @{ $self->{backwardsTable} }, $1;
-	}
-	elsif ($line =~ /^forwards\s+(\S*)/) { # parhaps no use
-	    push @{ $self->{forwardsTable} }, $1;
-	}
-	elsif ($line =~ /^rearrange\s+(.*)/) { # (\S*) is NG
-	    push @{ $self->{rearrangeTable} }, _getHexArray($1);
-	}
+        # matched ^\s*\@
+        if ($line =~ /^version\s*(\S*)/) {
+            $self->{versionTable} ||= $1;
+        }
+        elsif ($line =~ /^variable\s+(\S*)/) { # since UTS #10-9
+            $self->{variableTable} ||= $1;
+        }
+        elsif ($line =~ /^alternate\s+(\S*)/) { # till UTS #10-8
+            $self->{alternateTable} ||= $1;
+        }
+        elsif ($line =~ /^backwards\s+(\S*)/) {
+            push @{ $self->{backwardsTable} }, $1;
+        }
+        elsif ($line =~ /^forwards\s+(\S*)/) { # parhaps no use
+            push @{ $self->{forwardsTable} }, $1;
+        }
+        elsif ($line =~ /^rearrange\s+(.*)/) { # (\S*) is NG
+            push @{ $self->{rearrangeTable} }, _getHexArray($1);
+        }
     }
     close $fh;
 }
 
+sub read_compiled_table {
+    my $self = shift;
+
+    my($f, $fh);
+    foreach my $d (@INC) {
+        $f = File::Spec->catfile($d, @Path, $self->{table});
+        last if open($fh, $f);
+        $f = undef;
+    }
+    if (!defined $f) {
+        $f = File::Spec->catfile(@Path, $self->{table});
+        #TODO carp instead and call read_table on "allkeys.txt"
+        croak("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
+    }
+
+    tie my %MAPPING, 'GDBM_File', $f, &GDBM_READER, 0644
+        or croak("$PACKAGE: Cannot tie $f : $!");
+
+    $self->{tiedmapping} = \%MAPPING ;
+
+}
+
+sub getmap {
+    my ($self, $key) = @_;
+
+    if (defined $self->{undefName}) {
+        require Unicode::UCD;
+        my $ci = Unicode::UCD::charinfo($key) ;
+        return
+            if $ci->{name} =~ /$self->{undefName}/;
+    }
+
+    if (defined $self->{undefChar} || defined $self->{ignoreChar} ) {
+        my $ele = pack_U($key);
+        return
+            if defined $self->{undefChar} && $ele =~ /$self->{undefChar}/;
+        return []
+            if defined $self->{ignoreChar} && $ele =~ /$self->{ignoreChar}/;
+    }
+
+    if (exists $self->{mapping}{$key}) {
+        return $self->{mapping}{$key}
+    }
+
+    if ($self->{table_is_compiled}) {
+        my $frozen = $self->{tiedmapping}{$key};
+        return thaw($frozen) if $frozen;
+    }
+
+    return
+}
 
 ##
 ## get $line, parse it, and write an entry in $self
@@ -349,13 +412,13 @@ sub parseEntry
 
     # removes comment and gets name
     $name = $1
-	if $line =~ s/[#%]\s*(.*)//;
+        if $line =~ s/[#%]\s*(.*)//;
     return if defined $self->{undefName} && $name =~ /$self->{undefName}/;
 
     # gets element
     my($e, $k) = split /;/, $line;
     croak "Wrong Entry: <charList> must be separated by ';' from <collElement>"
-	if ! $k;
+        if ! $k;
 
     @uv = _getHexArray($e);
     return if !@uv;
@@ -363,40 +426,45 @@ sub parseEntry
     $entry = join(CODE_SEP, @uv); # in JCPS
 
     if (defined $self->{undefChar} || defined $self->{ignoreChar}) {
-	my $ele = pack_U(@uv);
+        my $ele = pack_U(@uv);
 
-	# regarded as if it were not entried in the table
-	return
-	    if defined $self->{undefChar} && $ele =~ /$self->{undefChar}/;
+        # regarded as if it were not entried in the table
+        return
+            if defined $self->{undefChar} && $ele =~ /$self->{undefChar}/;
 
-	# replaced as completely ignorable
-	$k = '[.0000.0000.0000.0000]'
-	    if defined $self->{ignoreChar} && $ele =~ /$self->{ignoreChar}/;
+        # replaced as completely ignorable
+        $k = '[.0000.0000.0000.0000]'
+            if defined $self->{ignoreChar} && $ele =~ /$self->{ignoreChar}/;
     }
 
     # replaced as completely ignorable
     $k = '[.0000.0000.0000.0000]'
-	if defined $self->{ignoreName} && $name =~ /$self->{ignoreName}/;
+    if defined $self->{ignoreName} && $name =~ /$self->{ignoreName}/;
 
     my $is_L3_ignorable = TRUE;
 
     foreach my $arr ($k =~ /\[([^\[\]]+)\]/g) { # SPACEs allowed
-	my $var = $arr =~ /\*/; # exactly /^\*/ but be lenient.
-	my @wt = _getHexArray($arr);
-	push @key, pack(VCE_TEMPLATE, $var, @wt);
-	$is_L3_ignorable = FALSE
-	    if $wt[0] || $wt[1] || $wt[2];
-	# Conformance Test for 3.1.1 and 4.0.0 shows Level 3 ignorable
-	# is completely ignorable.
-	# For expansion, an entry $is_L3_ignorable
-	# if and only if "all" CEs are [.0000.0000.0000].
+        my $var = $arr =~ /\*/; # exactly /^\*/ but be lenient.
+        my @wt = _getHexArray($arr);
+        push @key, pack(VCE_TEMPLATE, $var, @wt);
+        $is_L3_ignorable = FALSE
+            if $wt[0] || $wt[1] || $wt[2];
+        # Conformance Test for 3.1.1 and 4.0.0 shows Level 3 ignorable
+        # is completely ignorable.
+        # For expansion, an entry $is_L3_ignorable
+        # if and only if "all" CEs are [.0000.0000.0000].
     }
 
-    $self->{mapping}{$entry} = $is_L3_ignorable ? [] : \@key;
+    if ( $is_L3_ignorable ) {
+        $self->{mapping}{$entry} = [];
+    }
+    else {
+        $self->{mapping}{$entry} = \@key;
+    }
 
     if (@uv > 1) {
-	(!$self->{maxlength}{$uv[0]} || $self->{maxlength}{$uv[0]} < @uv)
-	    and $self->{maxlength}{$uv[0]} = @uv;
+        (!$self->{maxlength}{$uv[0]} || $self->{maxlength}{$uv[0]} < @uv)
+            and $self->{maxlength}{$uv[0]} = @uv;
     }
 }
 
@@ -409,20 +477,20 @@ sub _varCE
     my $vbl = shift;
     my $vce = shift;
     if ($vbl eq 'non-ignorable') {
-	return $vce;
+    return $vce;
     }
     my ($var, @wt) = unpack VCE_TEMPLATE, $vce;
 
     if ($var) {
-	return pack(VCE_TEMPLATE, $var, 0, 0, 0,
-		$vbl eq 'blanked' ? $wt[3] : $wt[0]);
+    return pack(VCE_TEMPLATE, $var, 0, 0, 0,
+        $vbl eq 'blanked' ? $wt[3] : $wt[0]);
     }
     elsif ($vbl eq 'blanked') {
-	return $vce;
+    return $vce;
     }
     else {
-	return pack(VCE_TEMPLATE, $var, @wt[0..2],
-	    $vbl eq 'shifted' && $wt[0]+$wt[1]+$wt[2] ? Shift4Wt : 0);
+    return pack(VCE_TEMPLATE, $var, @wt[0..2],
+        $vbl eq 'shifted' && $wt[0]+$wt[1]+$wt[2] ? Shift4Wt : 0);
     }
 }
 
@@ -438,9 +506,9 @@ sub visualizeSortKey
     my $view = join " ", map sprintf("%04X", $_), unpack(KEY_TEMPLATE, shift);
 
     if ($self->{UCA_Version} <= 8) {
-	$view =~ s/ ?0000 ?/|/g;
+        $view =~ s/ ?0000 ?/|/g;
     } else {
-	$view =~ s/\b0000\b/|/g;
+        $view =~ s/\b0000\b/|/g;
     }
     return "[$view]";
 }
@@ -457,7 +525,6 @@ sub splitEnt
 
     my $code = $self->{preprocess};
     my $norm = $self->{normCode};
-    my $map  = $self->{mapping};
     my $max  = $self->{maxlength};
     my $reH  = $self->{rearrangeHash};
     my $ver9 = $self->{UCA_Version} >= 9 && $self->{UCA_Version} <= 11;
@@ -465,16 +532,16 @@ sub splitEnt
     my ($str, @buf);
 
     if ($wLen) {
-	$code and croak "Preprocess breaks character positions. "
-			. "Don't use with index(), match(), etc.";
-	$norm and croak "Normalization breaks character positions. "
-			. "Don't use with index(), match(), etc.";
-	$str = $_[0];
+        $code and croak "Preprocess breaks character positions. "
+                . "Don't use with index(), match(), etc.";
+        $norm and croak "Normalization breaks character positions. "
+                . "Don't use with index(), match(), etc.";
+        $str = $_[0];
     }
     else {
-	$str = $_[0];
-	$str = &$code($str) if ref $code;
-	$str = &$norm($str) if ref $norm;
+        $str = $_[0];
+        $str = &$code($str) if ref $code;
+        $str = &$norm($str) if ref $norm;
     }
 
     # get array of Unicode code point of string.
@@ -484,87 +551,87 @@ sub splitEnt
     # Character positions are not kept if rearranged,
     # then neglected if $wLen is true.
     if ($reH && ! $wLen) {
-	for (my $i = 0; $i < @src; $i++) {
-	    if (exists $reH->{ $src[$i] } && $i + 1 < @src) {
-		($src[$i], $src[$i+1]) = ($src[$i+1], $src[$i]);
-		$i++;
-	    }
-	}
+        for (my $i = 0; $i < @src; $i++) {
+            if (exists $reH->{ $src[$i] } && $i + 1 < @src) {
+            ($src[$i], $src[$i+1]) = ($src[$i+1], $src[$i]);
+            $i++;
+            }
+        }
     }
 
     # remove a code point marked as a completely ignorable.
     for (my $i = 0; $i < @src; $i++) {
-	$src[$i] = undef
-	    if _isIllegal($src[$i]) || ($ver9 &&
-		$map->{ $src[$i] } && @{ $map->{ $src[$i] } } == 0);
+        $src[$i] = undef
+            if _isIllegal($src[$i]) || ($ver9 &&
+            $self->getmap( $src[$i] ) && @{ $self->getmap( $src[$i] ) } == 0);
     }
 
     for (my $i = 0; $i < @src; $i++) {
-	my $jcps = $src[$i];
+        my $jcps = $src[$i];
 
-	# skip removed code point
-	if (! defined $jcps) {
-	    if ($wLen && @buf) {
-		$buf[-1][2] = $i + 1;
-	    }
-	    next;
-	}
+        # skip removed code point
+        if (! defined $jcps) {
+            if ($wLen && @buf) {
+                $buf[-1][2] = $i + 1;
+            }
+            next;
+        }
 
-	my $i_orig = $i;
+        my $i_orig = $i;
 
-	# find contraction
-	if ($max->{$jcps}) {
-	    my $temp_jcps = $jcps;
-	    my $jcpsLen = 1;
-	    my $maxLen = $max->{$jcps};
+        # find contraction
+        if ($max->{$jcps}) {
+            my $temp_jcps = $jcps;
+            my $jcpsLen = 1;
+            my $maxLen = $max->{$jcps};
 
-	    for (my $p = $i + 1; $jcpsLen < $maxLen && $p < @src; $p++) {
-		next if ! defined $src[$p];
-		$temp_jcps .= CODE_SEP . $src[$p];
-		$jcpsLen++;
-		if ($map->{$temp_jcps}) {
-		    $jcps = $temp_jcps;
-		    $i = $p;
-		}
-	    }
+            for (my $p = $i + 1; $jcpsLen < $maxLen && $p < @src; $p++) {
+                next if ! defined $src[$p];
+                $temp_jcps .= CODE_SEP . $src[$p];
+                $jcpsLen++;
+                if ($self->getmap($temp_jcps)) {
+                    $jcps = $temp_jcps;
+                    $i = $p;
+                }
+            }
 
-	# not-contiguous contraction with Combining Char (cf. UTS#10, S2.1).
-	# This process requires Unicode::Normalize.
-	# If "normalization" is undef, here should be skipped *always*
-	# (in spite of bool value of $CVgetCombinClass),
-	# since canonical ordering cannot be expected.
-	# Blocked combining character should not be contracted.
+        # not-contiguous contraction with Combining Char (cf. UTS#10, S2.1).
+        # This process requires Unicode::Normalize.
+        # If "normalization" is undef, here should be skipped *always*
+        # (in spite of bool value of $CVgetCombinClass),
+        # since canonical ordering cannot be expected.
+        # Blocked combining character should not be contracted.
 
-	    if ($self->{normalization})
-	    # $self->{normCode} is false in the case of "prenormalized".
-	    {
-		my $preCC = 0;
-		my $curCC = 0;
+            if ($self->{normalization})
+            # $self->{normCode} is false in the case of "prenormalized".
+            {
+                my $preCC = 0;
+                my $curCC = 0;
 
-		for (my $p = $i + 1; $p < @src; $p++) {
-		    next if ! defined $src[$p];
-		    $curCC = $CVgetCombinClass->($src[$p]);
-		    last unless $curCC;
-		    my $tail = CODE_SEP . $src[$p];
-		    if ($preCC != $curCC && $map->{$jcps.$tail}) {
-			$jcps .= $tail;
-			$src[$p] = undef;
-		    } else {
-			$preCC = $curCC;
-		    }
-		}
-	    }
-	}
+                for (my $p = $i + 1; $p < @src; $p++) {
+                    next if ! defined $src[$p];
+                    $curCC = $CVgetCombinClass->($src[$p]);
+                    last unless $curCC;
+                    my $tail = CODE_SEP . $src[$p];
+                    if ($preCC != $curCC && $self->getmap($jcps.$tail)) {
+                        $jcps .= $tail;
+                        $src[$p] = undef;
+                    } else {
+                        $preCC = $curCC;
+                    }
+                }
+            }
+        }
 
-	# skip completely ignorable
-	if ($map->{$jcps} && @{ $map->{$jcps} } == 0) {
-	    if ($wLen && @buf) {
-		$buf[-1][2] = $i + 1;
-	    }
-	    next;
-	}
+        # skip completely ignorable
+        if ($self->getmap($jcps) && @{ $self->getmap($jcps) } == 0) {
+            if ($wLen && @buf) {
+                $buf[-1][2] = $i + 1;
+            }
+            next;
+        }
 
-	push @buf, $wLen ? [$jcps, $i_orig, $i + 1] : $jcps;
+        push @buf, $wLen ? [$jcps, $i_orig, $i + 1] : $jcps;
     }
     return \@buf;
 }
@@ -578,65 +645,64 @@ sub getWt
     my $self = shift;
     my $u    = shift;
     my $vbl  = $self->{variable};
-    my $map  = $self->{mapping};
     my $der  = $self->{derivCode};
 
     return if !defined $u;
-    return map(_varCE($vbl, $_), @{ $map->{$u} })
-	if $map->{$u};
+    return map(_varCE($vbl, $_), @{ $self->getmap($u) })
+        if $self->getmap($u);
 
     # JCPS must not be a contraction, then it's a code point.
     if (Hangul_SIni <= $u && $u <= Hangul_SFin) {
-	my $hang = $self->{overrideHangul};
-	my @hangulCE;
-	if ($hang) {
-	    @hangulCE = map(pack(VCE_TEMPLATE, NON_VAR, @$_), &$hang($u));
-	}
-	elsif (!defined $hang) {
-	    @hangulCE = $der->($u);
-	}
-	else {
-	    my $max  = $self->{maxlength};
-	    my @decH = _decompHangul($u);
+        my $hang = $self->{overrideHangul};
+        my @hangulCE;
+        if ($hang) {
+            @hangulCE = map(pack(VCE_TEMPLATE, NON_VAR, @$_), &$hang($u));
+        }
+        elsif (!defined $hang) {
+            @hangulCE = $der->($u);
+        }
+        else {
+            my $max  = $self->{maxlength};
+            my @decH = _decompHangul($u);
 
-	    if (@decH == 2) {
-		my $contract = join(CODE_SEP, @decH);
-		@decH = ($contract) if $map->{$contract};
-	    } else { # must be <@decH == 3>
-		if ($max->{$decH[0]}) {
-		    my $contract = join(CODE_SEP, @decH);
-		    if ($map->{$contract}) {
-			@decH = ($contract);
-		    } else {
-			$contract = join(CODE_SEP, @decH[0,1]);
-			$map->{$contract} and @decH = ($contract, $decH[2]);
-		    }
-		    # even if V's ignorable, LT contraction is not supported.
-		    # If such a situatution were required, NFD should be used.
-		}
-		if (@decH == 3 && $max->{$decH[1]}) {
-		    my $contract = join(CODE_SEP, @decH[1,2]);
-		    $map->{$contract} and @decH = ($decH[0], $contract);
-		}
-	    }
+            if (@decH == 2) {
+                my $contract = join(CODE_SEP, @decH);
+                @decH = ($contract) if $self->getmap($contract);
+            } else { # must be <@decH == 3>
+                if ($max->{$decH[0]}) {
+                    my $contract = join(CODE_SEP, @decH);
+                    if ($self->getmap($contract)) {
+                    @decH = ($contract);
+                    } else {
+                    $contract = join(CODE_SEP, @decH[0,1]);
+                    $self->getmap($contract) and @decH = ($contract, $decH[2]);
+                    }
+                    # even if V's ignorable, LT contraction is not supported.
+                    # If such a situatution were required, NFD should be used.
+                }
+                if (@decH == 3 && $max->{$decH[1]}) {
+                    my $contract = join(CODE_SEP, @decH[1,2]);
+                    $self->getmap($contract) and @decH = ($decH[0], $contract);
+                }
+            }
 
-	    @hangulCE = map({
-		    $map->{$_} ? @{ $map->{$_} } : $der->($_);
-		} @decH);
-	}
-	return map _varCE($vbl, $_), @hangulCE;
+            @hangulCE = map({
+                $self->getmap($_) ? @{ $self->getmap($_) } : $der->($_);
+            } @decH);
+        }
+        return map _varCE($vbl, $_), @hangulCE;
     }
     elsif (_isUIdeo($u, $self->{UCA_Version})) {
-	my $cjk  = $self->{overrideCJK};
-	return map _varCE($vbl, $_),
-	    $cjk
-		? map(pack(VCE_TEMPLATE, NON_VAR, @$_), &$cjk($u))
-		: defined $cjk && $self->{UCA_Version} <= 8 && $u < 0x10000
-		    ? _uideoCE_8($u)
-		    : $der->($u);
+        my $cjk  = $self->{overrideCJK};
+        return map _varCE($vbl, $_),
+            $cjk
+            ? map(pack(VCE_TEMPLATE, NON_VAR, @$_), &$cjk($u))
+            : defined $cjk && $self->{UCA_Version} <= 8 && $u < 0x10000
+                ? _uideoCE_8($u)
+                : $der->($u);
     }
     else {
-	return map _varCE($vbl, $_), $der->($u);
+        return map _varCE($vbl, $_), $der->($u);
     }
 }
 
@@ -650,35 +716,35 @@ sub getSortKey
     my $lev  = $self->{level};
     my $rEnt = $self->splitEnt(shift); # get an arrayref of JCPS
     my $v2i  = $self->{UCA_Version} >= 9 &&
-		$self->{variable} ne 'non-ignorable';
+        $self->{variable} ne 'non-ignorable';
 
     my @buf; # weight arrays
     if ($self->{hangul_terminator}) {
-	my $preHST = '';
-	foreach my $jcps (@$rEnt) {
-	    # weird things like VL, TL-contraction are not considered!
-	    my $curHST = '';
-	    foreach my $u (split /;/, $jcps) {
-		$curHST .= getHST($u);
-	    }
-	    if ($preHST && !$curHST || # hangul before non-hangul
-		$preHST =~ /L\z/ && $curHST =~ /^T/ ||
-		$preHST =~ /V\z/ && $curHST =~ /^L/ ||
-		$preHST =~ /T\z/ && $curHST =~ /^[LV]/) {
+    my $preHST = '';
+    foreach my $jcps (@$rEnt) {
+        # weird things like VL, TL-contraction are not considered!
+        my $curHST = '';
+        foreach my $u (split /;/, $jcps) {
+        $curHST .= getHST($u);
+        }
+        if ($preHST && !$curHST || # hangul before non-hangul
+            $preHST =~ /L\z/ && $curHST =~ /^T/ ||
+            $preHST =~ /V\z/ && $curHST =~ /^L/ ||
+            $preHST =~ /T\z/ && $curHST =~ /^[LV]/)
+        {
+            push @buf, $self->getWtHangulTerm();
+        }
+        $preHST = $curHST;
 
-		push @buf, $self->getWtHangulTerm();
-	    }
-	    $preHST = $curHST;
-
-	    push @buf, $self->getWt($jcps);
-	}
-	$preHST # end at hangul
-	    and push @buf, $self->getWtHangulTerm();
+        push @buf, $self->getWt($jcps);
+    }
+    $preHST # end at hangul
+        and push @buf, $self->getWtHangulTerm();
     }
     else {
-	foreach my $jcps (@$rEnt) {
-	    push @buf, $self->getWt($jcps);
-	}
+        foreach my $jcps (@$rEnt) {
+            push @buf, $self->getWt($jcps);
+        }
     }
 
     # make sort key
@@ -686,47 +752,47 @@ sub getSortKey
     my $last_is_variable;
 
     foreach my $vwt (@buf) {
-	my($var, @wt) = unpack(VCE_TEMPLATE, $vwt);
+        my($var, @wt) = unpack(VCE_TEMPLATE, $vwt);
 
-	# "Ignorable (L1, L2) after Variable" since track. v. 9
-	if ($v2i) {
-	    if ($var) {
-		$last_is_variable = TRUE;
-	    }
-	    elsif (!$wt[0]) { # ignorable
-		next if $last_is_variable;
-	    }
-	    else {
-		$last_is_variable = FALSE;
-	    }
-	}
-	foreach my $v (0..$lev-1) {
-	    0 < $wt[$v] and push @{ $ret[$v] }, $wt[$v];
-	}
+        # "Ignorable (L1, L2) after Variable" since track. v. 9
+        if ($v2i) {
+            if ($var) {
+                $last_is_variable = TRUE;
+            }
+            elsif (!$wt[0]) { # ignorable
+                next if $last_is_variable;
+            }
+            else {
+                $last_is_variable = FALSE;
+            }
+        }
+        foreach my $v (0..$lev-1) {
+            0 < $wt[$v] and push @{ $ret[$v] }, $wt[$v];
+        }
     }
 
     # modification of tertiary weights
     if ($self->{upper_before_lower}) {
-	foreach my $w (@{ $ret[2] }) {
-	    if    (0x8 <= $w && $w <= 0xC) { $w -= 6 } # lower
-	    elsif (0x2 <= $w && $w <= 0x6) { $w += 6 } # upper
-	    elsif ($w == 0x1C)             { $w += 1 } # square upper
-	    elsif ($w == 0x1D)             { $w -= 1 } # square lower
-	}
+        foreach my $w (@{ $ret[2] }) {
+            if    (0x8 <= $w && $w <= 0xC) { $w -= 6 } # lower
+            elsif (0x2 <= $w && $w <= 0x6) { $w += 6 } # upper
+            elsif ($w == 0x1C)             { $w += 1 } # square upper
+            elsif ($w == 0x1D)             { $w -= 1 } # square lower
+        }
     }
     if ($self->{katakana_before_hiragana}) {
-	foreach my $w (@{ $ret[2] }) {
-	    if    (0x0F <= $w && $w <= 0x13) { $w -= 2 } # katakana
-	    elsif (0x0D <= $w && $w <= 0x0E) { $w += 5 } # hiragana
-	}
+        foreach my $w (@{ $ret[2] }) {
+            if    (0x0F <= $w && $w <= 0x13) { $w -= 2 } # katakana
+            elsif (0x0D <= $w && $w <= 0x0E) { $w += 5 } # hiragana
+        }
     }
 
     if ($self->{backwardsFlag}) {
-	for (my $v = MinLevel; $v <= MaxLevel; $v++) {
-	    if ($self->{backwardsFlag} & (1 << $v)) {
-		@{ $ret[$v-1] } = reverse @{ $ret[$v-1] };
-	    }
-	}
+        for (my $v = MinLevel; $v <= MaxLevel; $v++) {
+            if ($self->{backwardsFlag} & (1 << $v)) {
+                @{ $ret[$v-1] } = reverse @{ $ret[$v-1] };
+            }
+        }
     }
 
     join LEVEL_SEP, map pack(KEY_TEMPLATE, @$_), @ret;
@@ -750,44 +816,44 @@ sub ge  { $_[0]->getSortKey($_[1]) ge  $_[0]->getSortKey($_[2]) }
 sub sort {
     my $obj = shift;
     return
-	map { $_->[1] }
-	    sort{ $a->[0] cmp $b->[0] }
-		map [ $obj->getSortKey($_), $_ ], @_;
+        map { $_->[1] }
+        sort { $a->[0] cmp $b->[0] }
+        map [ $obj->getSortKey($_), $_ ], @_;
 }
 
 
 sub _derivCE_14 {
     my $u = shift;
     my $base =
-	(CJK_UidIni  <= $u && $u <= CJK_UidF41)
-	    ? 0xFB40 : # CJK
-	(CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
-	 CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
-	    ? 0xFB80   # CJK ext.
-	    : 0xFBC0;  # others
+    (CJK_UidIni  <= $u && $u <= CJK_UidF41)
+        ? 0xFB40 : # CJK
+    (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
+     CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
+        ? 0xFB80   # CJK ext.
+        : 0xFBC0;  # others
 
     my $aaaa = $base + ($u >> 15);
     my $bbbb = ($u & 0x7FFF) | 0x8000;
     return
-	pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
-	pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
+        pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
+        pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
 }
 
 sub _derivCE_9 {
     my $u = shift;
     my $base =
-	(CJK_UidIni  <= $u && $u <= CJK_UidFin)
-	    ? 0xFB40 : # CJK
-	(CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
-	 CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
-	    ? 0xFB80   # CJK ext.
-	    : 0xFBC0;  # others
+    (CJK_UidIni  <= $u && $u <= CJK_UidFin)
+        ? 0xFB40 : # CJK
+    (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
+     CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
+        ? 0xFB80   # CJK ext.
+        : 0xFBC0;  # others
 
     my $aaaa = $base + ($u >> 15);
     my $bbbb = ($u & 0x7FFF) | 0x8000;
     return
-	pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
-	pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
+        pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
+        pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
 }
 
 sub _derivCE_8 {
@@ -795,32 +861,34 @@ sub _derivCE_8 {
     my $aaaa =  0xFF80 + ($code >> 15);
     my $bbbb = ($code & 0x7FFF) | 0x8000;
     return
-	pack(VCE_TEMPLATE, NON_VAR, $aaaa, 2, 1, $code),
-	pack(VCE_TEMPLATE, NON_VAR, $bbbb, 0, 0, $code);
+        pack(VCE_TEMPLATE, NON_VAR, $aaaa, 2, 1, $code),
+        pack(VCE_TEMPLATE, NON_VAR, $bbbb, 0, 0, $code);
 }
 
 sub _uideoCE_8 {
     my $u = shift;
-    return pack(VCE_TEMPLATE, NON_VAR, $u, Min2Wt, Min3Wt, $u);
+    return
+        pack(VCE_TEMPLATE, NON_VAR, $u, Min2Wt, Min3Wt, $u);
 }
 
 sub _isUIdeo {
     my ($u, $uca_vers) = @_;
     return(
-	(CJK_UidIni <= $u &&
-	    ($uca_vers >= 14 ? ( $u <= CJK_UidF41) : ($u <= CJK_UidFin)))
-		||
-	(CJK_ExtAIni <= $u && $u <= CJK_ExtAFin)
-		||
-	(CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
+        (CJK_UidIni <= $u &&
+            ($uca_vers >= 14 ? ( $u <= CJK_UidF41) : ($u <= CJK_UidFin)))
+            ||
+        (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin)
+            ||
+        (CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
     );
 }
 
 
 sub getWtHangulTerm {
     my $self = shift;
-    return _varCE($self->{variable},
-	pack(VCE_TEMPLATE, NON_VAR, $self->{hangul_terminator}, 0,0,0));
+    return
+        _varCE($self->{variable},
+        pack(VCE_TEMPLATE, NON_VAR, $self->{hangul_terminator}, 0,0,0));
 }
 
 
@@ -839,40 +907,41 @@ sub _decompHangul {
     my $li = int( $si / Hangul_NCount);
     my $vi = int(($si % Hangul_NCount) / Hangul_TCount);
     my $ti =      $si % Hangul_TCount;
-    return (
-	Hangul_LBase + $li,
-	Hangul_VBase + $vi,
-	$ti ? (Hangul_TBase + $ti) : (),
+    return(
+        Hangul_LBase + $li,
+        Hangul_VBase + $vi,
+        $ti ? (Hangul_TBase + $ti) : (),
     );
 }
 
 sub _isIllegal {
     my $code = shift;
-    return ! defined $code                      # removed
-	|| ($code < 0 || 0x10FFFF < $code)      # out of range
-	|| (($code & 0xFFFE) == 0xFFFE)         # ??FFF[EF] (cf. utf8.c)
-	|| (0xD800 <= $code && $code <= 0xDFFF) # unpaired surrogates
-	|| (0xFDD0 <= $code && $code <= 0xFDEF) # other non-characters
-    ;
+    return(
+        ! defined $code                      # removed
+        || ($code < 0 || 0x10FFFF < $code)      # out of range
+        || (($code & 0xFFFE) == 0xFFFE)         # ??FFF[EF] (cf. utf8.c)
+        || (0xD800 <= $code && $code <= 0xDFFF) # unpaired surrogates
+        || (0xFDD0 <= $code && $code <= 0xFDEF) # other non-characters
+    );
 }
 
 # Hangul Syllable Type
 sub getHST {
     my $u = shift;
-    return
-	Hangul_LIni <= $u && $u <= Hangul_LFin || $u == Hangul_LFill ? "L" :
-	Hangul_VIni <= $u && $u <= Hangul_VFin	     ? "V" :
-	Hangul_TIni <= $u && $u <= Hangul_TFin	     ? "T" :
-	Hangul_SIni <= $u && $u <= Hangul_SFin ?
-	    ($u - Hangul_SBase) % Hangul_TCount ? "LVT" : "LV" : "";
+    return(
+        Hangul_LIni <= $u && $u <= Hangul_LFin || $u == Hangul_LFill ? "L" :
+        Hangul_VIni <= $u && $u <= Hangul_VFin         ? "V" :
+        Hangul_TIni <= $u && $u <= Hangul_TFin         ? "T" :
+        Hangul_SIni <= $u && $u <= Hangul_SFin ?
+            ($u - Hangul_SBase) % Hangul_TCount ? "LVT" : "LV" : ""
+    );
 }
 
 
 ##
 ## bool _nonIgnorAtLevel(arrayref weights, int level)
 ##
-sub _nonIgnorAtLevel($$)
-{
+sub _nonIgnorAtLevel($$) {
     my $wt = shift;
     return if ! defined $wt;
     my $lv = shift;
@@ -887,21 +956,20 @@ sub _nonIgnorAtLevel($$)
 ## * comparison of graphemes vs graphemes.
 ##   @$source >= @$substr must be true (check it before call this);
 ##
-sub _eqArray($$$)
-{
+sub _eqArray($$$) {
     my $source = shift;
     my $substr = shift;
     my $lev = shift;
 
-    for my $g (0..@$substr-1){
-	# Do the $g'th graphemes have the same number of AV weigths?
-	return if @{ $source->[$g] } != @{ $substr->[$g] };
+    for my $g (0..@$substr-1) {
+        # Do the $g'th graphemes have the same number of AV weigths?
+        return if @{ $source->[$g] } != @{ $substr->[$g] };
 
-	for my $w (0..@{ $substr->[$g] }-1) {
-	    for my $v (0..$lev-1) {
-		return if $source->[$g][$w][$v] != $substr->[$g][$w][$v];
-	    }
-	}
+        for my $w (0..@{ $substr->[$g] }-1) {
+            for my $v (0..$lev-1) {
+                return if $source->[$g][$w][$v] != $substr->[$g][$w][$v];
+            }
+        }
     }
     return 1;
 }
@@ -913,8 +981,7 @@ sub _eqArray($$$)
 ## With "grobal" (only for the list context),
 ##  returns list of arrayref[position, length].
 ##
-sub index
-{
+sub index {
     my $self = shift;
     my $str  = shift;
     my $len  = length($str);
@@ -925,45 +992,44 @@ sub index
 
     my $lev  = $self->{level};
     my $v2i  = $self->{UCA_Version} >= 9 &&
-		$self->{variable} ne 'non-ignorable';
+        $self->{variable} ne 'non-ignorable';
 
     if (! @$subE) {
-	my $temp = $pos <= 0 ? 0 : $len <= $pos ? $len : $pos;
-	return $grob
-	    ? map([$_, 0], $temp..$len)
-	    : wantarray ? ($temp,0) : $temp;
+        my $temp = $pos <= 0 ? 0 : $len <= $pos ? $len : $pos;
+        return $grob
+            ? map([$_, 0], $temp..$len)
+            : wantarray ? ($temp,0) : $temp;
     }
     $len < $pos
-	and return wantarray ? () : NOMATCHPOS;
+        and return wantarray ? () : NOMATCHPOS;
     my $strE = $self->splitEnt($pos ? substr($str, $pos) : $str, TRUE);
-    @$strE
-	or return wantarray ? () : NOMATCHPOS;
+    @$strE or return wantarray ? () : NOMATCHPOS;
 
     my(@strWt, @iniPos, @finPos, @subWt, @g_ret);
 
     my $last_is_variable;
     for my $vwt (map $self->getWt($_), @$subE) {
-	my($var, @wt) = unpack(VCE_TEMPLATE, $vwt);
-	my $to_be_pushed = _nonIgnorAtLevel(\@wt,$lev);
+        my($var, @wt) = unpack(VCE_TEMPLATE, $vwt);
+        my $to_be_pushed = _nonIgnorAtLevel(\@wt,$lev);
 
-	# "Ignorable (L1, L2) after Variable" since track. v. 9
-	if ($v2i) {
-	    if ($var) {
-		$last_is_variable = TRUE;
-	    }
-	    elsif (!$wt[0]) { # ignorable
-		$to_be_pushed = FALSE if $last_is_variable;
-	    }
-	    else {
-		$last_is_variable = FALSE;
-	    }
-	}
+        # "Ignorable (L1, L2) after Variable" since track. v. 9
+        if ($v2i) {
+            if ($var) {
+                $last_is_variable = TRUE;
+            }
+            elsif (!$wt[0]) { # ignorable
+                $to_be_pushed = FALSE if $last_is_variable;
+            }
+            else {
+                $last_is_variable = FALSE;
+            }
+        }
 
-	if (@subWt && !$var && !$wt[0]) {
-	    push @{ $subWt[-1] }, \@wt if $to_be_pushed;
-	} else {
-	    push @subWt, [ \@wt ];
-	}
+        if (@subWt && !$var && !$wt[0]) {
+            push @{ $subWt[-1] }, \@wt if $to_be_pushed;
+        } else {
+            push @subWt, [ \@wt ];
+        }
     }
 
     my $count = 0;
@@ -971,70 +1037,70 @@ sub index
 
     $last_is_variable = FALSE; # reuse
     for (my $i = 0; $i <= $end; ) { # no $i++
-	my $found_base = 0;
+        my $found_base = 0;
 
-	# fetch a grapheme
-	while ($i <= $end && $found_base == 0) {
-	    for my $vwt ($self->getWt($strE->[$i][0])) {
-		my($var, @wt) = unpack(VCE_TEMPLATE, $vwt);
-		my $to_be_pushed = _nonIgnorAtLevel(\@wt,$lev);
+        # fetch a grapheme
+        while ($i <= $end && $found_base == 0) {
+            for my $vwt ($self->getWt($strE->[$i][0])) {
+                my($var, @wt) = unpack(VCE_TEMPLATE, $vwt);
+                my $to_be_pushed = _nonIgnorAtLevel(\@wt,$lev);
 
-		# "Ignorable (L1, L2) after Variable" since track. v. 9
-		if ($v2i) {
-		    if ($var) {
-			$last_is_variable = TRUE;
-		    }
-		    elsif (!$wt[0]) { # ignorable
-			$to_be_pushed = FALSE if $last_is_variable;
-		    }
-		    else {
-			$last_is_variable = FALSE;
-		    }
-		}
+                # "Ignorable (L1, L2) after Variable" since track. v. 9
+                if ($v2i) {
+                    if ($var) {
+                        $last_is_variable = TRUE;
+                    }
+                    elsif (!$wt[0]) { # ignorable
+                        $to_be_pushed = FALSE if $last_is_variable;
+                    }
+                    else {
+                        $last_is_variable = FALSE;
+                    }
+                }
 
-		if (@strWt && !$var && !$wt[0]) {
-		    push @{ $strWt[-1] }, \@wt if $to_be_pushed;
-		    $finPos[-1] = $strE->[$i][2];
-		} elsif ($to_be_pushed) {
-		    push @strWt, [ \@wt ];
-		    push @iniPos, $found_base ? NOMATCHPOS : $strE->[$i][1];
-		    $finPos[-1] = NOMATCHPOS if $found_base;
-		    push @finPos, $strE->[$i][2];
-		    $found_base++;
-		}
-		# else ===> no-op
-	    }
-	    $i++;
-	}
+                if (@strWt && !$var && !$wt[0]) {
+                    push @{ $strWt[-1] }, \@wt if $to_be_pushed;
+                    $finPos[-1] = $strE->[$i][2];
+                } elsif ($to_be_pushed) {
+                    push @strWt, [ \@wt ];
+                    push @iniPos, $found_base ? NOMATCHPOS : $strE->[$i][1];
+                    $finPos[-1] = NOMATCHPOS if $found_base;
+                    push @finPos, $strE->[$i][2];
+                    $found_base++;
+                }
+                # else ===> no-op
+            }
+            $i++;
+        }
 
-	# try to match
-	while ( @strWt > @subWt || (@strWt == @subWt && $i > $end) ) {
-	    if ($iniPos[0] != NOMATCHPOS &&
-		    $finPos[$#subWt] != NOMATCHPOS &&
-			_eqArray(\@strWt, \@subWt, $lev)) {
-		my $temp = $iniPos[0] + $pos;
+        # try to match
+        while ( @strWt > @subWt || (@strWt == @subWt && $i > $end) ) {
+            if ($iniPos[0] != NOMATCHPOS &&
+                $finPos[$#subWt] != NOMATCHPOS &&
+                _eqArray(\@strWt, \@subWt, $lev)) {
+                my $temp = $iniPos[0] + $pos;
 
-		if ($grob) {
-		    push @g_ret, [$temp, $finPos[$#subWt] - $iniPos[0]];
-		    splice @strWt,  0, $#subWt;
-		    splice @iniPos, 0, $#subWt;
-		    splice @finPos, 0, $#subWt;
-		}
-		else {
-		    return wantarray
-			? ($temp, $finPos[$#subWt] - $iniPos[0])
-			:  $temp;
-		}
-	    }
-	    shift @strWt;
-	    shift @iniPos;
-	    shift @finPos;
-	}
+                if ($grob) {
+                    push @g_ret, [$temp, $finPos[$#subWt] - $iniPos[0]];
+                    splice @strWt,  0, $#subWt;
+                    splice @iniPos, 0, $#subWt;
+                    splice @finPos, 0, $#subWt;
+                }
+                else {
+                    return wantarray
+                        ? ($temp, $finPos[$#subWt] - $iniPos[0])
+                        :  $temp;
+                }
+            }
+            shift @strWt;
+            shift @iniPos;
+            shift @finPos;
+        }
     }
 
     return $grob
-	? @g_ret
-	: wantarray ? () : NOMATCHPOS;
+        ? @g_ret
+        : wantarray ? () : NOMATCHPOS;
 }
 
 ##
@@ -1044,13 +1110,13 @@ sub match
 {
     my $self = shift;
     if (my($pos,$len) = $self->index($_[0], $_[1])) {
-	my $temp = substr($_[0], $pos, $len);
-	return wantarray ? $temp : \$temp;
-	# An lvalue ref \substr should be avoided,
-	# since its value is affected by modification of its referent.
+        my $temp = substr($_[0], $pos, $len);
+        return wantarray ? $temp : \$temp;
+        # An lvalue ref \substr should be avoided,
+        # since its value is affected by modification of its referent.
     }
     else {
-	return;
+        return;
     }
 }
 
@@ -1063,7 +1129,7 @@ sub gmatch
     my $str  = shift;
     my $sub  = shift;
     return map substr($str, $_->[0], $_->[1]),
-		$self->index($str, $sub, 0, 'g');
+        $self->index($str, $sub, 0, 'g');
 }
 
 ##
@@ -1075,16 +1141,16 @@ sub subst
     my $code = ref $_[2] eq 'CODE' ? $_[2] : FALSE;
 
     if (my($pos,$len) = $self->index($_[0], $_[1])) {
-	if ($code) {
-	    my $mat = substr($_[0], $pos, $len);
-	    substr($_[0], $pos, $len, $code->($mat));
-	} else {
-	    substr($_[0], $pos, $len, $_[2]);
-	}
-	return TRUE;
+        if ($code) {
+            my $mat = substr($_[0], $pos, $len);
+            substr($_[0], $pos, $len, $code->($mat));
+        } else {
+            substr($_[0], $pos, $len, $_[2]);
+        }
+        return TRUE;
     }
     else {
-	return FALSE;
+        return FALSE;
     }
 }
 
@@ -1099,13 +1165,13 @@ sub gsubst
 
     # Replacement is carried out from the end, then use reverse.
     for my $pos_len (reverse $self->index($_[0], $_[1], 0, 'g')) {
-	if ($code) {
-	    my $mat = substr($_[0], $pos_len->[0], $pos_len->[1]);
-	    substr($_[0], $pos_len->[0], $pos_len->[1], $code->($mat));
-	} else {
-	    substr($_[0], $pos_len->[0], $pos_len->[1], $_[2]);
-	}
-	$cnt++;
+        if ($code) {
+            my $mat = substr($_[0], $pos_len->[0], $pos_len->[1]);
+            substr($_[0], $pos_len->[0], $pos_len->[1], $code->($mat));
+        } else {
+            substr($_[0], $pos_len->[0], $pos_len->[1], $_[2]);
+        }
+    $cnt++;
     }
     return $cnt;
 }
@@ -1676,17 +1742,17 @@ an empty list in list context.
 e.g.
 
     if ($match_ref = $Collator->match($str, $sub)) { # scalar context
-	print "matches [$$match_ref].\n";
+    print "matches [$$match_ref].\n";
     } else {
-	print "doesn't match.\n";
+    print "doesn't match.\n";
     }
 
      or
 
     if (($match) = $Collator->match($str, $sub)) { # list context
-	print "matches [$match].\n";
+    print "matches [$match].\n";
     } else {
-	print "doesn't match.\n";
+    print "doesn't match.\n";
     }
 
 =item C<@match = $Collator-E<gt>gmatch($string, $substring)>
