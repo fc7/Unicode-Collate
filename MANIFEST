@@ -1,8 +1,8 @@
 Changes
 lib/Unicode/Collate.pm
 Collate.xs
-data/allkeys.txt
-data/keys.txt
+lib/Unicode/Collate/allkeys.txt
+lib/Unicode/Collate/keys.txt
 Makefile.PL
 MANIFEST
 META.yml
