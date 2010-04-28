@@ -1,5 +1,14 @@
 Revision history for Perl module Unicode::Collate.
 
+0.53 (NOT OFFICIAL)
+    - Added the latest DUCET (for Unicode 5.2.0) as lib/Collate/allkeys.txt.
+    - The collate tables are compiled at build time to a gdbm file on disk:
+      this considerably speeds up initialization of Unicode::Collate objects.
+    - By default U::C will tie the mappings to the pre-compiled table allkeys.db
+      instead of allkeys.txt.
+    - Added a test t/testdb.txt to test the new implementation with keys.db
+    - Tidied the code quite a bit.
+
 0.52  Thu Oct 13 21:51:09 2005
     - The Unicode::Collate->new method does not destroy user's $_ any longer.
       (thanks to Jon Warbrick for bug report)
