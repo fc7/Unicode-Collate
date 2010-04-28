@@ -521,7 +521,7 @@ sub new
     $self->{normalization} = 'NFD'
         if ! exists $self->{normalization};
     $self->{rearrange} = $self->{rearrangeTable} ||
-    ($self->{UCA_Version} <= 11 ? $DefaultRearrange : [])
+        ($self->{UCA_Version} <= 11 ? $DefaultRearrange : [])
         if ! exists $self->{rearrange};
     $self->{backwards} = $self->{backwardsTable}
         if ! exists $self->{backwards};
@@ -546,31 +546,31 @@ sub read_table {
     }
 
     while (my $line = <$fh>) {
-    next if $line =~ /^\s*#/;
-    unless ($line =~ s/^\s*\@//) {
-        $self->parseEntry($line);
-        next;
-    }
+        next if $line =~ /^\s*#/;
+        unless ($line =~ s/^\s*\@//) {
+            $self->parseEntry($line);
+            next;
+        }
 
-    # matched ^\s*\@
-    if ($line =~ /^version\s*(\S*)/) {
-        $self->{versionTable} ||= $1;
-    }
-    elsif ($line =~ /^variable\s+(\S*)/) { # since UTS #10-9
-        $self->{variableTable} ||= $1;
-    }
-    elsif ($line =~ /^alternate\s+(\S*)/) { # till UTS #10-8
-        $self->{alternateTable} ||= $1;
-    }
-    elsif ($line =~ /^backwards\s+(\S*)/) {
-        push @{ $self->{backwardsTable} }, $1;
-    }
-    elsif ($line =~ /^forwards\s+(\S*)/) { # parhaps no use
-        push @{ $self->{forwardsTable} }, $1;
-    }
-    elsif ($line =~ /^rearrange\s+(.*)/) { # (\S*) is NG
-        push @{ $self->{rearrangeTable} }, _getHexArray($1);
-    }
+        # matched ^\s*\@
+        if ($line =~ /^version\s*(\S*)/) {
+            $self->{versionTable} ||= $1;
+        }
+        elsif ($line =~ /^variable\s+(\S*)/) { # since UTS #10-9
+            $self->{variableTable} ||= $1;
+        }
+        elsif ($line =~ /^alternate\s+(\S*)/) { # till UTS #10-8
+            $self->{alternateTable} ||= $1;
+        }
+        elsif ($line =~ /^backwards\s+(\S*)/) {
+            push @{ $self->{backwardsTable} }, $1;
+        }
+        elsif ($line =~ /^forwards\s+(\S*)/) { # parhaps no use
+            push @{ $self->{forwardsTable} }, $1;
+        }
+        elsif ($line =~ /^rearrange\s+(.*)/) { # (\S*) is NG
+            push @{ $self->{rearrangeTable} }, _getHexArray($1);
+        }
     }
     close $fh;
 }
@@ -590,7 +590,8 @@ sub read_compiled_table {
         croak("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
     }
 
-    tie my %MAPPING, 'GDBM_File', $f, &GDBM_READER, 0644 || die "Cannot tie $f : $!";
+    tie my %MAPPING, 'GDBM_File', $f, &GDBM_READER, 0644
+        or croak("Cannot tie $f : $!");
 
     $self->{tiedmapping} = \%MAPPING ;
 
@@ -639,7 +640,7 @@ sub parseEntry
 
     # removes comment and gets name
     $name = $1
-    if $line =~ s/[#%]\s*(.*)//;
+        if $line =~ s/[#%]\s*(.*)//;
     return if defined $self->{undefName} && $name =~ /$self->{undefName}/;
 
     # gets element
@@ -741,8 +742,8 @@ sub splitEnt
     if ($reH && ! $wLen) {
         for (my $i = 0; $i < @src; $i++) {
             if (exists $reH->{ $src[$i] } && $i + 1 < @src) {
-            ($src[$i], $src[$i+1]) = ($src[$i+1], $src[$i]);
-            $i++;
+                ($src[$i], $src[$i+1]) = ($src[$i+1], $src[$i]);
+                $i++;
             }
         }
     }
@@ -760,7 +761,7 @@ sub splitEnt
         # skip removed code point
         if (! defined $jcps) {
             if ($wLen && @buf) {
-            $buf[-1][2] = $i + 1;
+                $buf[-1][2] = $i + 1;
             }
             next;
         }
