@@ -20,6 +20,7 @@ t/normal.t
 t/override.t
 t/rearrang.t
 t/test.t
+t/testdb.t
 t/trailwt.t
 t/variable.t
 t/version.t
