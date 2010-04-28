@@ -1,5 +1,8 @@
-Unicode/Collate version 0.52
-===============================
+Unicode/Collate version 0.53
+========================================================
+!!! NB: THIS IS A NON OFFICIAL FORK FROM v0.52 on CPAN
+!!! See Changes for details
+========================================================
 
 NAME
 
@@ -57,30 +60,15 @@ To install this module type the following:
    make test
    make install
 
-(!! XSUB for Unicode::Collate is an EXPERIMENTAL support !!)
-If you have a C compiler and want to use XSUB edition,
-type the following (!! "enableXS" must run before "Makefile.PL" !!):
-
-   perl enableXS
-   perl Makefile.PL
-   make
-   make test
-   make install
-
-If you decide to install pure Perl (i.e. non-XS) edition after trying
-to build XSUB, type the following:
-
-   make clean
-   perl disableXS
-   perl Makefile.PL
-   make
-   make test
-   make install
-
 DEPENDENCIES
 
   The conformant collation requires Unicode::Normalize (v 0.10 or later)
   although Unicode::Collate can be used without Unicode::Normalize.
+
+  Version 0.53 add the following requirements:
+   - GDBM_File
+   - Storable
+   - Unicode::UCD
 
 AUTHOR, COPYRIGHT AND LICENSE
 
@@ -88,10 +76,12 @@ The Unicode::Collate module for perl was written by SADAHIRO Tomoyuki,
 <SADAHIRO@cpan.org>. This module is Copyright(C) 2001-2005,
 SADAHIRO Tomoyuki. Japan. All rights reserved.
 
+This forked version by François Charette, (C) 2010.
+
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 The file Unicode/Collate/allkeys.txt was copied directly
-from http://www.unicode.org/Public/UCA/4.1.0/allkeys.txt
-This file is Copyright (c) 1991-2005 Unicode, Inc. All rights reserved.
+from http://www.unicode.org/Public/UCA/5.2.0/allkeys.txt
+This file is Copyright (c) 1991-2009 Unicode, Inc. All rights reserved.
 Distributed under the Terms of Use in http://www.unicode.org/copyright.html
