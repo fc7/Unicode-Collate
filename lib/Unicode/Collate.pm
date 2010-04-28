@@ -2,7 +2,7 @@ package Unicode::Collate;
 
 BEGIN {
     unless ("A" eq pack('U', 0x41)) {
-    die "Unicode::Collate cannot stringify a Unicode code point\n";
+        die "Unicode::Collate cannot stringify a Unicode code point\n";
     }
 }
 
@@ -156,20 +156,20 @@ sub change {
     my %hash = @_;
     my %old;
     if (exists $hash{variable} && exists $hash{alternate}) {
-    delete $hash{alternate};
+        delete $hash{alternate};
     }
     elsif (!exists $hash{variable} && exists $hash{alternate}) {
-    $hash{variable} = $hash{alternate};
+        $hash{variable} = $hash{alternate};
     }
     foreach my $k (keys %hash) {
-    if (exists $ChangeOK{$k}) {
-        $old{$k} = $self->{$k};
-        $self->{$k} = $hash{$k};
-    }
-    elsif (exists $ChangeNG{$k}) {
-        croak "change of $k via change() is not allowed!";
-    }
-    # else => ignored
+        if (exists $ChangeOK{$k}) {
+            $old{$k} = $self->{$k};
+            $self->{$k} = $hash{$k};
+        }
+        elsif (exists $ChangeNG{$k}) {
+            croak "change of $k via change() is not allowed!";
+        }
+        # else => ignored
     }
     $self->checkCollator();
     return wantarray ? %old : $self;
@@ -179,10 +179,10 @@ sub _checkLevel {
     my $level = shift;
     my $key   = shift; # 'level' or 'backwards'
     MinLevel <= $level or croak sprintf
-    "Illegal level %d (in value for key '%s') lower than %d.",
+        "Illegal level %d (in value for key '%s') lower than %d.",
         $level, $key, MinLevel;
     $level <= MaxLevel or croak sprintf
-    "Unsupported level %d (in value for key '%s') higher than %d.",
+        "Unsupported level %d (in value for key '%s') higher than %d.",
         $level, $key, MaxLevel;
 }
 
@@ -201,7 +201,7 @@ sub checkCollator {
         or croak "Illegal UCA version (passed $self->{UCA_Version}).";
 
     $self->{variable} ||= $self->{alternate} || $self->{variableTable} ||
-                $self->{alternateTable} || 'shifted';
+        $self->{alternateTable} || 'shifted';
     $self->{variable} = $self->{alternate} = lc($self->{variable});
     exists $VariableOK{ $self->{variable} }
         or croak "$PACKAGE unknown variable parameter name: $self->{variable}";
@@ -477,20 +477,20 @@ sub _varCE
     my $vbl = shift;
     my $vce = shift;
     if ($vbl eq 'non-ignorable') {
-    return $vce;
+        return $vce;
     }
     my ($var, @wt) = unpack VCE_TEMPLATE, $vce;
 
     if ($var) {
-    return pack(VCE_TEMPLATE, $var, 0, 0, 0,
-        $vbl eq 'blanked' ? $wt[3] : $wt[0]);
+        return pack(VCE_TEMPLATE, $var, 0, 0, 0,
+            $vbl eq 'blanked' ? $wt[3] : $wt[0]);
     }
     elsif ($vbl eq 'blanked') {
-    return $vce;
+        return $vce;
     }
     else {
-    return pack(VCE_TEMPLATE, $var, @wt[0..2],
-        $vbl eq 'shifted' && $wt[0]+$wt[1]+$wt[2] ? Shift4Wt : 0);
+        return pack(VCE_TEMPLATE, $var, @wt[0..2],
+            $vbl eq 'shifted' && $wt[0]+$wt[1]+$wt[2] ? Shift4Wt : 0);
     }
 }
 
@@ -553,8 +553,8 @@ sub splitEnt
     if ($reH && ! $wLen) {
         for (my $i = 0; $i < @src; $i++) {
             if (exists $reH->{ $src[$i] } && $i + 1 < @src) {
-            ($src[$i], $src[$i+1]) = ($src[$i+1], $src[$i]);
-            $i++;
+                ($src[$i], $src[$i+1]) = ($src[$i+1], $src[$i]);
+                $i++;
             }
         }
     }
