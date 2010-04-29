@@ -1,0 +1,8 @@
+This is the TODO list for the unofficial fork of the CPAN module Unicode::Collate
+on http://github.com/fc7/Unicode-Collate
+
+* Update to UCA Revision 20 (the code currently reflects Revision 14 == Unicode 4.1.0)
+* Add support for locales based on the CLDR tailorings
+* Expand the test suite. Especially add tests based on
+  http://www.unicode.org/Public/UCA/5.2.0/CollationTest.zip
+* Benchmark this fork (PP and XS) against v0.52 on CPAN (PP and XS).
