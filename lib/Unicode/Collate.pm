@@ -595,6 +595,7 @@ sub read_compiled_table {
 
     $self->{tiedmapping} = \%MAPPING ;
 
+    $self->{versionTable} = $self->{tiedmapping}{_versionTable};
 }
 
 sub getmap {

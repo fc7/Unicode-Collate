@@ -14,6 +14,10 @@ sub Unicode::Collate::compile_table {
         $MAPPING{$key} = freeze $value 
     }
 
+    if (exists $self->{versionTable}) {
+        $MAPPING{_versionTable} = $self->{versionTable}
+    }
+
     untie %MAPPING; 
 }
 
