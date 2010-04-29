@@ -65,7 +65,7 @@ DEPENDENCIES
   The conformant collation requires Unicode::Normalize (v 0.10 or later)
   although Unicode::Collate can be used without Unicode::Normalize.
 
-  Version 0.53 add the following requirements:
+  Version 0.53 add the following requirements (all in core perl):
    - GDBM_File
    - Storable
    - Unicode::UCD
@@ -81,7 +81,7 @@ This forked version by François Charette, (C) 2010.
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
-The file Unicode/Collate/allkeys.txt was copied directly
+The file lib/Unicode/Collate/allkeys.txt was copied directly
 from http://www.unicode.org/Public/UCA/5.2.0/allkeys.txt
 This file is Copyright (c) 1991-2009 Unicode, Inc. All rights reserved.
-Distributed under the Terms of Use in http://www.unicode.org/copyright.html
+Distributed under the Terms of Use in http://www.unicode.org/terms_of_use.html
