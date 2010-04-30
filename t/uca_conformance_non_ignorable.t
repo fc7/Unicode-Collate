@@ -31,6 +31,8 @@ use Test::More;
 use Unicode::Collate;
 use IO::File;
 no locale; # so that gt is done by code point order
+use lib 't/lib';
+use UCATest;
 
 my $DUCET_VERSION = '5.2.0';
 
@@ -47,49 +49,8 @@ my $Collator = Unicode::Collate->new(variable=>"non-ignorable", level=>3);
 ok($Collator->{versionTable} eq $DUCET_VERSION, "DUCET version");
 
 ##############
-chdir "data" or croak("Cannot chdir to 'data'");
+chdir "t/data" or die "Cannot chdir to 't/data'";
 my $testfile = 'CollationTest_NON_IGNORABLE.txt';
-
-sub packline {
-    my $str = shift;
-    $str =~ s/^([A-F0-9 ]+);.+$/$1/;
-    my @codepoints = split /\s+/, $str;
-    return pack "U*", (map hex $_, @codepoints);
-}
-
-sub run_test {
-    my $current;
-    my $previous;
-    my $currentline;
-    my $previousline;
-    my $fh = shift;
-    while (<$fh>) {
-        next if /^#/;
-        next if /^\s*$/;
-        chomp($currentline = $_);
-        $currentline =~ s/;.*$//;
-        $current = packline $_;
-        unless (not defined $previous) {
-            my $test_name = "$currentline > $previousline";
-            my $uca_cmp  = $Collator->cmp($current, $previous);
-            my $valid;
-            if ( $uca_cmp == -1 ) {
-                $valid = 0
-            }
-            elsif ( $uca_cmp == 1 ) {
-                $valid = 1
-            }
-            else { # $uca_cmp == 0, then code point of $current must be > $previous
-                $valid = ($current gt $previous);
-                $test_name .= " (code point order)"
-            }
-            ok($valid, $test_name);
-        }
-        $previous = $current;
-        $previousline = $currentline;
-        $current  = undef;
-    }
-}
 
 my $testfh = new IO::File;
 
@@ -97,7 +58,7 @@ $testfh->open("< $testfile") or die "Cannot open $testfile";
 print "==================================================\n";
 print "Testing UCA conformance with file $testfile ... \n";
 print "==================================================\n";
-run_test($testfh);
+$Collator->run_test($testfh);
 $testfh->close;
 print "==================================================\n";
 print "Finished \n";
