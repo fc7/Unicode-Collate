@@ -1,3 +1,4 @@
 Makefile
 lib/Unicode/Collate/*.db
 blib
+*.xz
