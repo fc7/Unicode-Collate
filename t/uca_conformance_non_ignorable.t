@@ -35,20 +35,20 @@ no locale; # so that gt is done by code point order
 my $DUCET_VERSION = '5.2.0';
 
 if ($ENV{TEST_UCA_CONFORMANCE}) {
-    plan( tests => 305707 ); # = 2 * ($no_of_lines - 1) + 1;
+    plan( tests => 152854 ); # = ($no_of_lines - 1) + 1;
 }
 else {
     plan( skip_all => "official UCA conformance tests (set TEST_UCA_CONFORMANCE=1 to enable)" );
 }
 #########################
 
-my $Collator = Unicode::Collate->new(); # use defaults
+my $Collator = Unicode::Collate->new(variable=>"non-ignorable", level=>3);
 
 ok($Collator->{versionTable} eq $DUCET_VERSION, "DUCET version");
 
 ##############
 chdir "data" or croak("Cannot chdir to 'data'");
-my @testfiles = qw/ CollationTest_SHIFTED.txt CollationTest_NON_IGNORABLE.txt /;
+my $testfile = 'CollationTest_NON_IGNORABLE.txt';
 
 sub packline {
     my $str = shift;
@@ -93,16 +93,14 @@ sub run_test {
 
 my $testfh = new IO::File;
 
-foreach my $test (@testfiles) {
-    $testfh->open("< $test") or die "Cannot open $test";
-    print "==================================================\n";
-    print "Testing UCA conformance with file $test ... \n";
-    print "==================================================\n";
-    run_test($testfh);
-    $testfh->close;
-    print "==================================================\n";
-    print "Finished \n";
-    print "==================================================\n\n\n";
-}
+$testfh->open("< $testfile") or die "Cannot open $testfile";
+print "==================================================\n";
+print "Testing UCA conformance with file $testfile ... \n";
+print "==================================================\n";
+run_test($testfh);
+$testfh->close;
+print "==================================================\n";
+print "Finished \n";
+print "==================================================\n\n\n";
 
 #done_testing();
