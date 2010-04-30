@@ -5,4 +5,5 @@ on http://github.com/fc7/Unicode-Collate
 * Add support for locales based on the CLDR tailorings
 * Expand the test suite. Especially add tests based on
   http://www.unicode.org/Public/UCA/5.2.0/CollationTest.zip
+  (the latter is now done).
 * Benchmark this fork (PP and XS) against v0.52 on CPAN (PP and XS).
