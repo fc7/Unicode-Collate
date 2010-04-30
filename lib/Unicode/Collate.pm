@@ -59,7 +59,7 @@ use constant KEY_TEMPLATE => 'n*';
 # i.e. pack(KEY_TEMPLATE, 0)
 use constant LEVEL_SEP => "\0\0";
 
-# As Unicode code point separator for hash keys.
+# CODE_SEP serves as Unicode code point separator for hash keys.
 # A joined code point string (denoted by JCPS below)
 # like "65;768" is used for internal processing
 # instead of Perl's Unicode string like "\x41\x{300}",
@@ -227,7 +227,7 @@ sub checkCollator {
 
     defined $self->{rearrange} or $self->{rearrange} = [];
     ref $self->{rearrange}
-        or croak "$PACKAGE: list for rearrangement must be store in ARRAYREF";
+        or croak "$PACKAGE: list for rearrangement must be stored in ARRAYREF";
 
     # keys of $self->{rearrangeHash} are $self->{rearrange}.
     $self->{rearrangeHash} = undef;
@@ -253,7 +253,7 @@ sub checkCollator {
                 Unicode::Normalize::normalize($norm, shift);
             };
             eval { $self->{normCode}->("") }; # try
-            $@ and croak "$PACKAGE unknown normalization form name: $norm";
+            $@ and croak "$PACKAGE: unknown normalization form name: $norm";
         }
     }
     return;
@@ -337,7 +337,7 @@ sub read_table {
         elsif ($line =~ /^backwards\s+(\S*)/) {
             push @{ $self->{backwardsTable} }, $1;
         }
-        elsif ($line =~ /^forwards\s+(\S*)/) { # parhaps no use
+        elsif ($line =~ /^forwards\s+(\S*)/) { # perhaps no use
             push @{ $self->{forwardsTable} }, $1;
         }
         elsif ($line =~ /^rearrange\s+(.*)/) { # (\S*) is NG
@@ -429,7 +429,7 @@ sub parseEntry
     if (defined $self->{undefChar} || defined $self->{ignoreChar}) {
         my $ele = pack_U(@uv);
 
-        # regarded as if it were not entried in the table
+        # regarded as if it were not entered in the table
         return
             if defined $self->{undefChar} && $ele =~ /$self->{undefChar}/;
 
@@ -679,7 +679,7 @@ sub getWt
                     $self->getmap($contract) and @decH = ($contract, $decH[2]);
                     }
                     # even if V's ignorable, LT contraction is not supported.
-                    # If such a situatution were required, NFD should be used.
+                    # If such a situation were required, NFD should be used.
                 }
                 if (@decH == 3 && $max->{$decH[1]}) {
                     my $contract = join(CODE_SEP, @decH[1,2]);
@@ -963,7 +963,7 @@ sub _eqArray($$$) {
     my $lev = shift;
 
     for my $g (0..@$substr-1) {
-        # Do the $g'th graphemes have the same number of AV weigths?
+        # Do the $g'th graphemes have the same number of AV weights?
         return if @{ $source->[$g] } != @{ $substr->[$g] };
 
         for my $w (0..@{ $substr->[$g] }-1) {
@@ -1202,8 +1202,9 @@ Unicode::Collate - Unicode Collation Algorithm
 
 =head1 DESCRIPTION
 
-This module is an implementation of Unicode Technical Standard #10
-(a.k.a. UTS #10) - Unicode Collation Algorithm (a.k.a. UCA).
+This module is an implementation of the Unicode Collation Algorithm
+specified in the Unicode Technical Standard #10:
+http://www.unicode.org/reports/tr10/
 
 =head2 Constructor and Tailoring
 
@@ -1235,12 +1236,11 @@ The C<new> method returns a collator object.
 
 =item UCA_Version
 
-If the tracking version number of UCA is given,
-behavior of that tracking version is emulated on collating.
-If omitted, the return value of C<UCA_Version()> is used.
-C<UCA_Version()> should return the latest tracking version supported.
+If the revision number of UCA is given, the behavior of that revision
+is emulated on collating. If omitted, the return value of C<UCA_Version()>
+is used. C<UCA_Version()> should return the latest revision supported.
 
-The supported tracking version: 8, 9, 11, or 14.
+The supported revisions are: 8, 9, 11 and 14.
 
      UCA       Unicode Standard         DUCET (@version)
      ---------------------------------------------------
@@ -1249,7 +1249,8 @@ The supported tracking version: 8, 9, 11, or 14.
      11              4.0                4.0.0 (4.0.0)
      14             4.1.0               4.1.0 (4.1.0)
 
-Note: Recent UTS #10 renames "Tracking Version" to "Revision."
+Note: In prior version or UTS #10 the term "Tracking Version" was used
+instead of "Revision".
 
 =item alternate
 
@@ -1273,7 +1274,7 @@ If omitted, forwards at all the levels.
 
 If the same character (or a sequence of characters) exists
 in the collation element table through C<table>,
-mapping to collation elements is overrided.
+mapping to collation elements is overridden.
 If it does not exist, the mapping is defined additionally.
 
     entry => <<'ENTRY', # for DUCET v4.0.0 (allkeys-4.0.0.txt)
@@ -1440,7 +1441,7 @@ C<U+4E00..U+9FA5>; if C<UCA_Version> is 14, its range is C<U+4E00..U+9FBB>)
 are lesser than C<CJK Unified Ideographs Extension> (its range is
 C<U+3400..U+4DB5> and C<U+20000..U+2A6D6>).
 
-Through C<overrideCJK>, ordering of CJK Unified Ideographs can be overrided.
+Through C<overrideCJK>, ordering of CJK Unified Ideographs can be overridden.
 
 ex. CJK Unified Ideographs in the JIS code point order.
 
@@ -1470,7 +1471,7 @@ in table or C<entry> is still valid.
 
 By default, Hangul Syllables are decomposed into Hangul Jamo,
 even if C<(normalization =E<gt> undef)>.
-But the mapping of Hangul Syllables may be overrided.
+But the mapping of Hangul Syllables may be overridden.
 
 This parameter works like C<overrideCJK>, so see there for examples.
 
@@ -1598,7 +1599,7 @@ this parameter doesn't work validly.
 
 This key allows to variable weighting for variable collation elements,
 which are marked with an ASTERISK in the table
-(NOTE: Many punction marks and symbols are variable in F<allkeys.txt>).
+(NOTE: Many punctuation marks and symbols are variable in F<allkeys.txt>).
 
    variable => 'blanked', 'non-ignorable', 'shifted', or 'shift-trimmed'.
 
@@ -1694,8 +1695,8 @@ from those on the specified string.
 (And C<rearrange> and C<hangul_terminator> parameters are neglected.)
 
 The C<match>, C<gmatch>, C<subst>, C<gsubst> methods work
-like C<m//>, C<m//g>, C<s///>, C<s///g>, respectively,
-but they are not aware of any pattern, but only a literal substring.
+like C<m//>, C<m//g>, C<s///>, C<s///g>, respectively.
+However they are not aware of any pattern, only of a literal substring.
 
 =over 4
 
@@ -1716,7 +1717,7 @@ e.g. you say
 
   my $Collator = Unicode::Collate->new( normalization => undef, level => 1 );
                                      # (normalization => undef) is REQUIRED.
-  my $str = "Ich muß studieren Perl.";
+  my $str = "Ich muß Perl lernen.";
   my $sub = "MÜSS";
   my $match;
   if (my($pos,$len) = $Collator->index($str, $sub)) {
@@ -1901,7 +1902,7 @@ B<Unicode::Normalize is required to try The Conformance Test.>
 
 =head1 AUTHOR, COPYRIGHT AND LICENSE
 
-The Unicode::Collate module for perl was written by SADAHIRO Tomoyuki,
+The Unicode::Collate module for Perl was written by SADAHIRO Tomoyuki,
 <SADAHIRO@cpan.org>. This module is Copyright(C) 2001-2005,
 SADAHIRO Tomoyuki. Japan. All rights reserved.
 
