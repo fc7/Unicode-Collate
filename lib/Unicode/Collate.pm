@@ -101,9 +101,9 @@ use constant BMP_Max       => 0xFFFF;
 # Logical_Order_Exception in PropList.txt
 my $DefaultRearrange = [ 0x0E40..0x0E44, 0x0EC0..0x0EC4 ];
 
-sub UCA_Version { "14" }
+sub UCA_Version { "14" } # TODO -> "20"
 
-sub Base_Unicode_Version { "4.1.0" }
+sub Base_Unicode_Version { "4.1.0" } # TODO -> "5.2.0"
 
 ######
 
@@ -191,6 +191,9 @@ my %DerivCode = (
     9 => \&_derivCE_9,
    11 => \&_derivCE_9, # 11 == 9
    14 => \&_derivCE_14,
+   #TODO 16 => \&_derivCE_14,
+   #TODO 18 => \&_derivCE_14,
+   #TODO 20 => \&_derivCE_14,
 );
 
 sub checkCollator {
@@ -281,6 +284,12 @@ sub new
         while ($self->{entry} =~ /([^\n]+)/g) {
             $self->parseEntry($1);
         }
+    }
+
+    #TODO if ($self->{locale}) { $self->load_locale($self->{locale}) }
+
+    if ($self->{ICU_rules}) {
+        $self->parse_ICU_rules($self->{ICU_rules})
     }
 
     $self->{level} ||= MaxLevel;
@@ -469,6 +478,105 @@ sub parseEntry
     }
 }
 
+#####################################################################
+### various subs and methods for localized tailorings:
+#####################################################################
+
+sub parse_ICU_rules {
+    my ($self, $rulestr) = @_;
+    $rulestr =~ s/^\s*&\s*//s;
+    $rulestr =~ s/\s+$//s;
+    my @rulestrings = split /\s*&\s*/, $rulestr;
+    my %levels = ( '<' => '1', '<<' => '2', '<<<' => '3', '<<<<' => '4', '=' => '0' );
+
+    #TODO assign logical resets to real codepoints
+    foreach my $rule (@rulestrings) {
+        my $forward  = 1;
+        my $dirlevel = 1;
+        my $reset_cp;
+        my ($reset_atom) = $rule =~ /^((?:\[before .\]\s+)?\S+)/;
+        $rule =~ s/^((?:\[before .\]\s+)?\S+)\s+//;
+
+        if ($reset_atom =~ /before/) {
+            $direction = -1;
+            ($dirlevel, $reset_cp) = $reset =~ /^\[before\s+(.)\]\s+(\S+)/;
+        } else {
+            $reset_cp = $reset_atom;
+        }
+
+        while ( my ($operator, $second, $rest) =
+                    $rule =~ /^\s*(<+|=)\s+(\S+(?:\s*(?:\/|\|)\s*\S+)?)\s*(.*)$/ ) {
+            $forward ? $self->putAfterKey($reset_cp, $second, $levels{$operator})
+                     : $self->putBeforeKey($reset_cp, $second, $levels{$operator});
+            $rule = $rest;
+        }
+    }
+}
+
+# get internal hash key for codepoint(s) $str
+sub _get_key_from_str {
+    my $str = shift;
+    if (length $str > 3) {
+        carp "arg '$str' has more than 3 characters: ignoring trailing ones";
+        $str = substr($str, 0, 3);
+    }
+    if (length $str > 1) { # two or three code points
+        my @chars = split //, $str;
+        return join(CODE_SEP, ( map { ord $_ } @chars) );
+    }
+    else { # one char
+        return ord($str)
+    }
+}
+
+# get CE as an arrayref of arrayrefs:
+sub _get_weight_array {
+    my ($self, $str) = @_;
+    my $arg = _get_key_from_str($str);
+    my $map = $self->getmap($arg);
+    return unless $map;
+    my @ret;
+    foreach my $m (@$map) {
+        push @ret, [ map { unpack(VCE_TEMPLATE, $_) } $m ];
+    }
+    return [@ret]
+}
+
+sub _pack_weight_array {
+    my ($self, $str, $weightArray) = @_;
+    my $arg = _get_key_from_str($str);
+    my @key;
+    foreach my $m (@$weightArray) {
+        push @key, pack(VCE_TEMPLATE, @$m)
+    }
+    $self->{mapping}{$arg} = \@key
+}
+
+# set key of $new after that of $ref at $level
+sub putAfterKey {
+    my ($self, $ref, $new, $level) = @_;
+    if ($level==0) {
+        $self->{mapping}{_get_key_from_str($new)} = $self->getmap(_get_key_from_str($ref));
+        return;
+    }
+    my $wa = $self->_get_weight_array($ref);
+    $wa->[0]->[$level]++;
+    $self->_pack_weight_array($new, $wa);
+}
+
+# set key of $new before that of $ref at $level
+sub putBeforeKey {
+    my ($self, $ref, $new, $level) = @_;
+    if ($level==0) {
+        $self->{mapping}{_get_key_from_str($new)} = $self->getmap(_get_key_from_str($ref));
+        return;
+    }
+    my $wa = $self->_get_weight_array($ref);
+    $wa->[0]->[$level]--;
+    $self->_pack_weight_array($new, $wa);
+}
+
+#####################################################################
 
 ##
 ## VCE = _varCE(variable term, VCE)
