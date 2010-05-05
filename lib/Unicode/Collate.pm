@@ -199,6 +199,17 @@ my %DerivCode = (
 
 sub checkCollator {
     my $self = shift;
+
+    if ( defined $self->{strength} ) {
+        my $s = $self->{strength};
+        my %strengths = (
+            primary => 1, secondary => 2, tertiary => 3,
+            quaternary => 4, identical => 5
+        );
+        $s = $strengths{$s} if defined $strengths{$s};
+        $self->{level} = $s;
+    }
+
     _checkLevel($self->{level}, "level");
 
     $self->{derivCode} = $DerivCode{ $self->{UCA_Version} }
@@ -210,10 +221,13 @@ sub checkCollator {
     exists $VariableOK{ $self->{variable} }
         or croak "$PACKAGE unknown variable parameter name: $self->{variable}";
 
-    if (! defined $self->{backwards}) {
+    if (! defined $self->{backwards} or $self->{backwards} eq 'off') {
         $self->{backwardsFlag} = 0;
     }
     elsif (! ref $self->{backwards}) {
+        if ($self->{backwards} eq 'on') {
+            $self->{backwards} = 2;
+        }
         _checkLevel($self->{backwards}, "backwards");
         $self->{backwardsFlag} = 1 << $self->{backwards};
     }
@@ -240,13 +254,17 @@ sub checkCollator {
         @{ $self->{rearrangeHash} }{ @{ $self->{rearrange} } } = ();
     }
 
-    $self->{normCode} = undef;
+    $self->{normCode} = undef; # FIXME : DEFAULT SHOULD BE NFD
 
-    if (defined $self->{normalization}) {
+    if (defined $self->{normalization} and $self->{normalization} ne 'off') {
         eval { require Unicode::Normalize };
         $@ and croak "Unicode::Normalize is required to normalize strings";
 
         $CVgetCombinClass ||= \&Unicode::Normalize::getCombinClass;
+
+        if ($self->{normalization} eq 'on') {
+           $self->{normalization} = 'NFD'
+        }
 
         if ($self->{normalization} =~ /^(?:NF)D\z/) { # tweak for default
             $self->{normCode} = \&Unicode::Normalize::NFD;
@@ -588,6 +606,15 @@ sub putBeforeKey {
 ##
 ## VCE = _varCE(variable term, VCE)
 ##
+#### TODO implement parameter "variableTop":
+# "variableTop = uXXuYYYY (The parameter value is an encoded Unicode string,
+#     with code points in hex, leading zeros removed, and 'u' inserted between
+#     successive elements.)
+# Sets the default value for the variable top. All the code points with primary
+# strengths less than variable top will be considered variable, and thus
+# affected by the alternate handling. If not specified, then the default is the
+# value in DUCET." (UCA §5.1)
+#
 sub _varCE
 {
     my $vbl = shift;
@@ -826,6 +853,10 @@ sub getWt
 ##
 ## string sortkey = getSortKey(string arg)
 ##
+#### TODO implement parameter "numeric" (on/off):
+#    "If set to on, any sequence of Decimal Digits (General_Category = Nd in
+#    the Unicode Character Database [UAX44]) is sorted at a primary level with
+#    its numeric value. For example, "A-21" < "A-123"."
 sub getSortKey
 {
     my $self = shift;
@@ -887,8 +918,14 @@ sub getSortKey
         }
     }
 
-    # modification of tertiary weights
-    if ($self->{upper_before_lower}) {
+    ### modification of tertiary weights
+
+    #TODO implement parameters "caseLevel" (on/off)
+    # "If set to on, a level consisting only of case characteristics will be
+    # inserted in front of tertiary level. To ignore accents but take cases
+    # into account, set strength to primary and case level to on." (UCA §5.1)
+
+    if ($self->{upper_before_lower} or $self->{caseFirst} eq 'upper') {
         foreach my $w (@{ $ret[2] }) {
             if    (0x8 <= $w && $w <= 0xC) { $w -= 6 } # lower
             elsif (0x2 <= $w && $w <= 0x6) { $w += 6 } # upper
@@ -896,6 +933,18 @@ sub getSortKey
             elsif ($w == 0x1D)             { $w -= 1 } # square lower
         }
     }
+    #FIXME this is untested
+    #implement "caseFirst =  lower"
+#    if ($self->{caseFirst} eq 'lower') {
+#        foreach my $w (@{ $ret[2] }) {
+#            if    (0x8 <= $w && $w <= 0xC) { $w += 6 } # lower
+#            elsif (0x2 <= $w && $w <= 0x6) { $w -= 6 } # upper
+#            elsif ($w == 0x1C)             { $w -= 1 } # square upper
+#            elsif ($w == 0x1D)             { $w += 1 } # square lower
+#        }
+#    }
+
+    #TODO also implement parameter "hiriganaQuaternary" (on/off)
     if ($self->{katakana_before_hiragana}) {
         foreach my $w (@{ $ret[2] }) {
             if    (0x0F <= $w && $w <= 0x13) { $w -= 2 } # katakana
@@ -1097,6 +1146,10 @@ sub _eqArray($$$) {
 ## With "grobal" (only for the list context),
 ##  returns list of arrayref[position, length].
 ##
+#### TODO
+# implement parameters match-boundaries ("none/whole-character/whole-word")
+# and match-style ("minimal/medial/maximal")
+# See UCA §5.1 and §8
 sub index {
     my $self = shift;
     my $str  = shift;
