@@ -35,7 +35,8 @@ my $CVgetCombinClass;
 
 # Supported Levels
 use constant MinLevel => 1;
-use constant MaxLevel => 4;
+use constant DefaultLevel => 3;
+use constant MaxLevel => 4; #TODO -> 5 in UCA ("identical")
 
 # Minimum weights at level 2 and 3, respectively
 use constant Min2Wt => 0x20;
@@ -292,7 +293,7 @@ sub new
         $self->parse_ICU_rules($self->{ICU_rules})
     }
 
-    $self->{level} ||= MaxLevel;
+    $self->{level} ||= DefaultLevel; # changed from MaxLevel
     $self->{UCA_Version} ||= UCA_Version();
 
     $self->{overrideHangul} = FALSE
