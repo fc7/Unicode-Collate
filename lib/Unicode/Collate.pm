@@ -316,14 +316,20 @@ sub read_table {
     my $self = shift;
 
     my($f, $fh);
-    foreach my $d (@INC) {
-        $f = File::Spec->catfile($d, @Path, $self->{table});
-        last if open($fh, $f);
-        $f = undef;
+    # enable passing absolute filename
+    if (File::Spec->file_name_is_absolute($self->{table})) {
+        open($fh, $self->{table}) or croak sprintf "Can't open table '%s'", $self->{table};
     }
-    if (!defined $f) {
-        $f = File::Spec->catfile(@Path, $self->{table});
-        croak("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
+    else {
+        foreach my $d (@INC) {
+            $f = File::Spec->catfile($d, @Path, $self->{table});
+            last if open($fh, $f);
+            $f = undef;
+        }
+        if (!defined $f) {
+            $f = File::Spec->catfile(@Path, $self->{table});
+            croak("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
+        }
     }
 
     while (my $line = <$fh>) {
