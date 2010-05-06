@@ -523,8 +523,8 @@ sub parse_ICU_rules {
         $rule =~ s/^((?:\[before .\]\s+)?\S+)\s+//;
 
         if ($reset_atom =~ /before/) {
-            $direction = -1;
-            ($dirlevel, $reset_cp) = $reset =~ /^\[before\s+(.)\]\s+(\S+)/;
+            $forward = 0;
+            ($dirlevel, $reset_cp) = $reset_atom =~ /^\[before\s+(.)\]\s+(\S+)/;
         } else {
             $reset_cp = $reset_atom;
         }
