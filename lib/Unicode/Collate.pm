@@ -35,7 +35,7 @@ my $CVgetCombinClass;
 
 # Supported Levels
 use constant MinLevel => 1;
-use constant DefaultLevel => 3;
+use constant DefaultLevel => 4; #FIXME -> UCA says 3 is the default
 use constant MaxLevel => 4; #TODO -> 5 in UCA ("identical")
 
 # Minimum weights at level 2 and 3, respectively
