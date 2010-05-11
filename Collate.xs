@@ -40,6 +40,7 @@ static const UV max_div_16 = UV_MAX / 16;
 #define CJK_UidIni	(0x4E00)
 #define CJK_UidFin	(0x9FA5)
 #define CJK_UidF41	(0x9FBB)
+#define CJK_UidF51	(0x9FC3)
 #define CJK_ExtAIni	(0x3400)
 #define CJK_ExtAFin	(0x4DB5)
 #define CJK_ExtBIni	(0x20000)
@@ -155,13 +156,15 @@ _derivCE_9 (code)
     UV code
   ALIAS:
     _derivCE_14 = 1
+    _derivCE_18 = 2
   PREINIT:
     UV base, aaaa, bbbb;
     U8 a[VCE_Length + 1] = "\x00\xFF\xFF\x00\x20\x00\x02\xFF\xFF";
     U8 b[VCE_Length + 1] = "\x00\xFF\xFF\x00\x00\x00\x00\xFF\xFF";
   PPCODE:
-    base = (CJK_UidIni <= code && (ix ? (code <= CJK_UidF41)
-				      : (code <= CJK_UidFin)))
+    base = (CJK_UidIni <= code && (ix == 2 ? (code <= CJK_UidF51) :
+				   ix == 1 ? (code <= CJK_UidF41) :
+					     (code <= CJK_UidFin)))
 	    ? 0xFB40 : /* CJK */
 	   (CJK_ExtAIni <= code && code <= CJK_ExtAFin ||
 	    CJK_ExtBIni <= code && code <= CJK_ExtBFin)
@@ -216,8 +219,11 @@ _isUIdeo (code, uca_vers)
     IV uca_vers;
   CODE:
     RETVAL = boolSV(
-	(CJK_UidIni <= code &&
-	    (uca_vers >= 14 ? (code <= CJK_UidF41) : (code <= CJK_UidFin)))
+	(CJK_UidIni <= code && (
+	    uca_vers >= 18 ? (code <= CJK_UidF51) :
+	    uca_vers >= 14 ? (code <= CJK_UidF41) :
+			     (code <= CJK_UidFin)
+	))
 		||
 	(CJK_ExtAIni <= code && code <= CJK_ExtAFin)
 		||

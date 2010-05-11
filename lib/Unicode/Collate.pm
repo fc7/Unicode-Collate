@@ -76,18 +76,18 @@ use constant Hangul_SFin   => 0xD7A3;
 use constant CJK_UidIni    => 0x4E00;
 use constant CJK_UidFin    => 0x9FA5;
 use constant CJK_UidF41    => 0x9FBB;
+use constant CJK_UidF51    => 0x9FC3;
 use constant CJK_ExtAIni   => 0x3400;
 use constant CJK_ExtAFin   => 0x4DB5;
 use constant CJK_ExtBIni   => 0x20000;
 use constant CJK_ExtBFin   => 0x2A6D6;
-use constant BMP_Max       => 0xFFFF;
 
 # Logical_Order_Exception in PropList.txt
 my $DefaultRearrange = [ 0x0E40..0x0E44, 0x0EC0..0x0EC4 ];
 
-sub UCA_Version { "14" }
+sub UCA_Version { "18" }
 
-sub Base_Unicode_Version { "4.1.0" }
+sub Base_Unicode_Version { "5.1.0" }
 
 ######
 
@@ -172,63 +172,64 @@ sub visualizeSortKey
     return "[$view]";
 }
 
-sub _derivCE_9 {
+sub _derivCE_18 {
     my $u = shift;
-    my $base =
-    (CJK_UidIni  <= $u && $u <= CJK_UidFin)
-        ? 0xFB40 : # CJK
-    (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
-     CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
-        ? 0xFB80   # CJK ext.
-        : 0xFBC0;  # others
-
+    my $base = (CJK_UidIni  <= $u && $u <= CJK_UidF51) ? 0xFB40 : # CJK
+               (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
+                CJK_ExtBIni <= $u && $u <= CJK_ExtBFin) ? 0xFB80  # CJK ext.
+                                                        : 0xFBC0; # others
     my $aaaa = $base + ($u >> 15);
     my $bbbb = ($u & 0x7FFF) | 0x8000;
-    return
-        pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
-        pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
+    return pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
+           pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
+}
+
+sub _derivCE_14 {
+    my $u = shift;
+    my $base = (CJK_UidIni  <= $u && $u <= CJK_UidF41) ? 0xFB40 : # CJK
+               (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
+                CJK_ExtBIni <= $u && $u <= CJK_ExtBFin) ? 0xFB80  # CJK ext.
+                                                        : 0xFBC0; # others
+    my $aaaa = $base + ($u >> 15);
+    my $bbbb = ($u & 0x7FFF) | 0x8000;
+    return pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
+           pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
+}
+
+sub _derivCE_9 {
+    my $u = shift;
+    my $base = (CJK_UidIni  <= $u && $u <= CJK_UidFin) ? 0xFB40 : # CJK
+               (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
+                CJK_ExtBIni <= $u && $u <= CJK_ExtBFin) ? 0xFB80  # CJK ext.
+                                                        : 0xFBC0; # others
+    my $aaaa = $base + ($u >> 15);
+    my $bbbb = ($u & 0x7FFF) | 0x8000;
+    return pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
+           pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
 }
 
 sub _derivCE_8 {
     my $code = shift;
     my $aaaa =  0xFF80 + ($code >> 15);
     my $bbbb = ($code & 0x7FFF) | 0x8000;
-    return
-        pack(VCE_TEMPLATE, NON_VAR, $aaaa, 2, 1, $code),
-        pack(VCE_TEMPLATE, NON_VAR, $bbbb, 0, 0, $code);
-}
-
-sub _derivCE_14 {
-    my $u = shift;
-    my $base =
-    (CJK_UidIni  <= $u && $u <= CJK_UidF41)
-        ? 0xFB40 : # CJK
-    (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin ||
-     CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
-        ? 0xFB80   # CJK ext.
-        : 0xFBC0;  # others
-
-    my $aaaa = $base + ($u >> 15);
-    my $bbbb = ($u & 0x7FFF) | 0x8000;
-    return
-        pack(VCE_TEMPLATE, NON_VAR, $aaaa, Min2Wt, Min3Wt, $u),
-        pack(VCE_TEMPLATE, NON_VAR, $bbbb,      0,      0, $u);
+    return pack(VCE_TEMPLATE, NON_VAR, $aaaa, 2, 1, $code),
+           pack(VCE_TEMPLATE, NON_VAR, $bbbb, 0, 0, $code);
 }
 
 sub _uideoCE_8 {
     my $u = shift;
-    return
-        pack(VCE_TEMPLATE, NON_VAR, $u, Min2Wt, Min3Wt, $u);
+    return pack(VCE_TEMPLATE, NON_VAR, $u, Min2Wt, Min3Wt, $u);
 }
 
 sub _isUIdeo {
     my ($u, $uca_vers) = @_;
-    return(
-        (CJK_UidIni <= $u &&
-            ($uca_vers >= 14 ? ( $u <= CJK_UidF41) : ($u <= CJK_UidFin)))
-            ||
+    return((CJK_UidIni <= $u && (
+            $uca_vers >= 18 ? ($u <= CJK_UidF51) :
+            $uca_vers >= 14 ? ($u <= CJK_UidF41) :
+                              ($u <= CJK_UidFin)))
+                ||
         (CJK_ExtAIni <= $u && $u <= CJK_ExtAFin)
-            ||
+                ||
         (CJK_ExtBIni <= $u && $u <= CJK_ExtBFin)
     );
 }
@@ -419,6 +420,8 @@ my %DerivCode = (
     9 => \&_derivCE_9,
    11 => \&_derivCE_9, # 11 == 9
    14 => \&_derivCE_14,
+   16 => \&_derivCE_14, # 16 == 14
+   18 => \&_derivCE_18,
 );
 
 sub checkCollator {
@@ -1268,7 +1271,7 @@ If the revision number of UCA is given, the behavior of that revision
 is emulated on collating. If omitted, the return value of C<UCA_Version()>
 is used. C<UCA_Version()> should return the latest revision supported.
 
-The supported revisions are: 8, 9, 11 and 14.
+The supported tracking version: 8, 9, 11, 14, 16 or 18.
 
      UCA       Unicode Standard         DUCET (@version)
      ---------------------------------------------------
@@ -1276,6 +1279,8 @@ The supported revisions are: 8, 9, 11 and 14.
       9     3.1 with Corrigendum 3      3.1.1 (3.1.1)
      11              4.0                4.0.0 (4.0.0)
      14             4.1.0               4.1.0 (4.1.0)
+     16              5.0                5.0.0 (5.0.0)
+     18             5.1.0               5.1.0 (5.1.0)
 
 Note: In prior version or UTS #10 the term "Tracking Version" was used
 instead of "Revision".
@@ -1463,11 +1468,13 @@ B<Unicode::Normalize> is required (see also B<CAVEAT>).
 
 -- see 7.1 Derived Collation Elements, UTS #10.
 
-By default, CJK Unified Ideographs are ordered in Unicode codepoint order
-but C<CJK Unified Ideographs> (if C<UCA_Version> is 8 to 11, its range is
-C<U+4E00..U+9FA5>; if C<UCA_Version> is 14, its range is C<U+4E00..U+9FBB>)
-are lesser than C<CJK Unified Ideographs Extension> (its range is
-C<U+3400..U+4DB5> and C<U+20000..U+2A6D6>).
+By default, CJK Unified Ideographs are ordered in Unicode codepoint
+order but C<CJK Unified Ideographs>
+(if C<UCA_Version> is 8 to 11, its range is C<U+4E00..U+9FA5>;
+if C<UCA_Version> is 14 to 16, its range is C<U+4E00..U+9FBB>;
+if C<UCA_Version> is 18, its range is C<U+4E00..U+9FC3>)
+are lesser than C<CJK Unified Ideographs Extension>
+(its range is C<U+3400..U+4DB5> and C<U+20000..U+2A6D6>).
 
 Through C<overrideCJK>, ordering of CJK Unified Ideographs can be overridden.
 
@@ -1543,7 +1550,8 @@ If C<UCA_Version> is equal to or lesser than 11, default is:
 If you want to disallow any rearrangement, pass C<undef> or C<[]>
 (a reference to empty list) as the value for this key.
 
-If C<UCA_Version> is equal to 14, default is C<[]> (i.e. no rearrangement).
+If C<UCA_Version> is equal to or greater than 14, default is C<[]>
+(i.e. no rearrangement).
 
 B<According to the version 9 of UCA, this parameter shall not be used;
 but it is not warned at present.>
@@ -1931,15 +1939,15 @@ B<Unicode::Normalize is required to try The Conformance Test.>
 =head1 AUTHOR, COPYRIGHT AND LICENSE
 
 The Unicode::Collate module for Perl was written by SADAHIRO Tomoyuki,
-<SADAHIRO@cpan.org>. This module is Copyright(C) 2001-2005,
+<SADAHIRO@cpan.org>. This module is Copyright(C) 2001-2010,
 SADAHIRO Tomoyuki. Japan. All rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 The file Unicode/Collate/allkeys.txt was copied directly
-from L<http://www.unicode.org/Public/UCA/4.1.0/allkeys.txt>.
-This file is Copyright (c) 1991-2005 Unicode, Inc. All rights reserved.
+from L<http://www.unicode.org/Public/UCA/5.1.0/allkeys.txt>.
+This file is Copyright (c) 1991-2008 Unicode, Inc. All rights reserved.
 Distributed under the Terms of Use in L<http://www.unicode.org/copyright.html>.
 
 =head1 SEE ALSO
