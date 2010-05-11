@@ -2,7 +2,6 @@
 use strict;
 use warnings;
 use XML::LibXML;
-#use XML::LibXML::Simple; #do without?
 use Data::Dump; # temporary
 use Carp;
 use FindBin qw($Bin);
@@ -112,7 +111,7 @@ foreach my $c ($collnodes->get_nodelist) {
     #dd %settings;
     $tailoring{$type}{settings} = { %settings } if %settings;
     # also get elements "suppress_contractions", "optimize", and "special" but ignore them for now
-    # check if "base" ref then register it
+    # check if "base" ref then register it (NB: as of CLDR 1.8 this is not used)
     # then parse rules:
     my $rules_node = $c->findnodes('rules')->get_node(1);
     # ddx $rules_node;

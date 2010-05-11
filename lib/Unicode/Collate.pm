@@ -399,9 +399,21 @@ sub read_compiled_table {
     tie my %MAPPING, 'GDBM_File', $f, &GDBM_READER, 0644
         or croak("$PACKAGE: Cannot tie $f : $!");
 
-    $self->{tiedmapping} = \%MAPPING ;
+    $self->{tiedhash} = \%MAPPING ;
 
-    $self->{versionTable} = $self->{tiedmapping}{_versionTable};
+    $self->{versionTable} = $self->{tiedhash}{_versionTable};
+    $self->{first_variable} = $self->{tiedhash}{_first_variable};
+    $self->{last_variable} = $self->{tiedhash}{_last_variable};
+    $self->{first_primary_ignorable} = $self->{tiedhash}{_first_primary_ignorable};
+    $self->{last_primary_ignorable} = $self->{tiedhash}{_last_primary_ignorable};
+    $self->{first_secondary_ignorable} = $self->{tiedhash}{_first_secondary_ignorable};
+    $self->{last_secondary_ignorable} = $self->{tiedhash}{_last_secondary_ignorable};
+    $self->{first_tertiary_ignorable} = $self->{tiedhash}{_first_tertiary_ignorable};
+    $self->{last_tertiary_ignorable} = $self->{tiedhash}{_last_tertiary_ignorable};
+    $self->{first_non_ignorable} = $self->{tiedhash}{_first_non_ignorable};
+    $self->{last_non_ignorable} = $self->{tiedhash}{_last_non_ignorable};
+    #$self->{first_trailing} = $self->{tiedhash}{_first_trailing};
+    #$self->{last_trailing} = $self->{tiedhash}{_last_trailing};
 }
 
 sub getmap {
@@ -427,8 +439,24 @@ sub getmap {
     }
 
     if ($self->{table_is_compiled}) {
-        my $frozen = $self->{tiedmapping}{$key};
+        my $frozen = $self->{tiedhash}{$key};
         return thaw($frozen) if $frozen;
+    }
+
+    return
+}
+
+sub getmaxlength {
+    my ($self,$key) = @_;
+
+    if (exists $self->{maxlength}{$key}) {
+        return $self->{maxlength}{$key}
+    }
+
+    if ($self->{table_is_compiled}) {
+        my $k = CODE_SEP . $key; # maxlengths are stored as ";<codepoint>" in the DBM
+        my $max = $self->{tiedhash}{$k};
+        return $max if $max;
     }
 
     return
@@ -477,29 +505,53 @@ sub parseEntry
     if defined $self->{ignoreName} && $name =~ /$self->{ignoreName}/;
 
     my $is_L3_ignorable = TRUE;
+    my $is_L2_ignorable = TRUE;
+    my $is_L1_ignorable = TRUE;
+    my $is_var;
 
     foreach my $arr ($k =~ /\[([^\[\]]+)\]/g) { # SPACEs allowed
-        my $var = $arr =~ /\*/; # exactly /^\*/ but be lenient.
+        $is_var = $arr =~ /\*/; # exactly /^\*/ but be lenient.
         my @wt = _getHexArray($arr);
-        push @key, pack(VCE_TEMPLATE, $var, @wt);
+        push @key, pack(VCE_TEMPLATE, $is_var, @wt);
         $is_L3_ignorable = FALSE
             if $wt[0] || $wt[1] || $wt[2];
+        $is_L2_ignorable = FALSE
+            if $wt[0] || $wt[1];
+        $is_L1_ignorable = FALSE
+            if $wt[0];
         # Conformance Test for 3.1.1 and 4.0.0 shows Level 3 ignorable
         # is completely ignorable.
         # For expansion, an entry $is_L3_ignorable
         # if and only if "all" CEs are [.0000.0000.0000].
     }
 
+    ## if entry is variable, check if it is lowest or largest seen so far
+    if ($is_var) {
+        $self->_check_if_first_or_last("variable", @uv);
+    }
+
+    ## for each "ignorable" category, check if it is lowest or largest seen so far
     if ( $is_L3_ignorable ) {
         $self->{mapping}{$entry} = [];
+        $self->_check_if_first_or_last("tertiary_ignorable", @uv);
     }
-    else {
+    elsif ( $is_L2_ignorable ) {
         $self->{mapping}{$entry} = \@key;
+        $self->_check_if_first_or_last("secondary_ignorable", @uv);
+    }
+    elsif ( $is_L1_ignorable ) {
+        $self->{mapping}{$entry} = \@key;
+        $self->_check_if_first_or_last("primary_ignorable", @uv);
+    }
+    else { # non_ignorable
+        $self->{mapping}{$entry} = \@key;
+        $self->_check_if_first_or_last("non_ignorable", @uv);
     }
 
     if (@uv > 1) {
-        (!$self->{maxlength}{$uv[0]} || $self->{maxlength}{$uv[0]} < @uv)
-            and $self->{maxlength}{$uv[0]} = @uv;
+        if ( !$self->getmaxlength($uv[0]) || $self->getmaxlength($uv[0]) < @uv ) {
+            $self->{maxlength}{$uv[0]} = @uv
+        }
     }
 }
 
@@ -512,7 +564,7 @@ sub parse_ICU_rules {
     $rulestr =~ s/^\s*&\s*//s;
     $rulestr =~ s/\s+$//s;
     my @rulestrings = split /\s*&\s*/, $rulestr;
-    my %levels = ( '<' => '1', '<<' => '2', '<<<' => '3', '<<<<' => '4', '=' => '0' );
+    my %levels = ( '<' => '1', '<<' => '2', '<<<' => '3', '<<<<' => '4', '=' => '5' );
 
     #TODO assign logical resets to real codepoints
     foreach my $rule (@rulestrings) {
@@ -580,7 +632,7 @@ sub _pack_weight_array {
 # set key of $new after that of $ref at $level
 sub putAfterKey {
     my ($self, $ref, $new, $level) = @_;
-    if ($level==0) {
+    if ($level==5) {
         $self->{mapping}{_get_key_from_str($new)} = $self->getmap(_get_key_from_str($ref));
         return;
     }
@@ -592,13 +644,37 @@ sub putAfterKey {
 # set key of $new before that of $ref at $level
 sub putBeforeKey {
     my ($self, $ref, $new, $level) = @_;
-    if ($level==0) {
+    if ($level==5) {
         $self->{mapping}{_get_key_from_str($new)} = $self->getmap(_get_key_from_str($ref));
         return;
     }
     my $wa = $self->_get_weight_array($ref);
     $wa->[0]->[$level]--;
     $self->_pack_weight_array($new, $wa);
+}
+
+sub _check_if_first_or_last {
+    my ($self,$keyname,@uv) = @_;
+
+    if ($self->{"first_$keyname"}) {
+        my @fv = split(CODE_SEP, $self->{"first_$keyname"});
+        if ( $uv[0] < $fv[0] ) {
+            $self->{"first_$keyname"} = join(CODE_SEP, @uv)
+        }
+    }
+    else {
+        $self->{"first_$keyname"} =  join(CODE_SEP, @uv)
+    }
+
+    if ($self->{"last_$keyname"}) {
+        my @lv = split(CODE_SEP, $self->{"last_$keyname"});
+        if ( $uv[0] >= $lv[0] ) {
+            $self->{"last_$keyname"} =  join(CODE_SEP, @uv)
+        }
+    }
+    else {
+        $self->{"last_$keyname"} =  join(CODE_SEP, @uv)
+    }
 }
 
 #####################################################################
@@ -668,7 +744,6 @@ sub splitEnt
 
     my $code = $self->{preprocess};
     my $norm = $self->{normCode};
-    my $max  = $self->{maxlength};
     my $reH  = $self->{rearrangeHash};
     my $ver9 = $self->{UCA_Version} >= 9 && $self->{UCA_Version} <= 11;
 
@@ -723,10 +798,10 @@ sub splitEnt
         my $i_orig = $i;
 
         # find contraction
-        if ($max->{$jcps}) {
+        if ($self->getmaxlength($jcps)) {
             my $temp_jcps = $jcps;
             my $jcpsLen = 1;
-            my $maxLen = $max->{$jcps};
+            my $maxLen = $self->getmaxlength($jcps);
 
             for (my $p = $i + 1; $jcpsLen < $maxLen && $p < @src; $p++) {
                 next if ! defined $src[$p];
@@ -805,14 +880,13 @@ sub getWt
             @hangulCE = $der->($u);
         }
         else {
-            my $max  = $self->{maxlength};
             my @decH = _decompHangul($u);
 
             if (@decH == 2) {
                 my $contract = join(CODE_SEP, @decH);
                 @decH = ($contract) if $self->getmap($contract);
             } else { # must be <@decH == 3>
-                if ($max->{$decH[0]}) {
+                if ($self->getmaxlength($decH[0])) {
                     my $contract = join(CODE_SEP, @decH);
                     if ($self->getmap($contract)) {
                     @decH = ($contract);
@@ -823,7 +897,7 @@ sub getWt
                     # even if V's ignorable, LT contraction is not supported.
                     # If such a situation were required, NFD should be used.
                 }
-                if (@decH == 3 && $max->{$decH[1]}) {
+                if (@decH == 3 && $self->getmaxlength($decH[1])) {
                     my $contract = join(CODE_SEP, @decH[1,2]);
                     $self->getmap($contract) and @decH = ($decH[0], $contract);
                 }
@@ -925,7 +999,8 @@ sub getSortKey
     # inserted in front of tertiary level. To ignore accents but take cases
     # into account, set strength to primary and case level to on." (UCA §5.1)
 
-    if ($self->{upper_before_lower} or $self->{caseFirst} eq 'upper') {
+    if ($self->{upper_before_lower} or
+        (defined $self->{caseFirst} && $self->{caseFirst} eq 'upper') ) {
         foreach my $w (@{ $ret[2] }) {
             if    (0x8 <= $w && $w <= 0xC) { $w -= 6 } # lower
             elsif (0x2 <= $w && $w <= 0x6) { $w += 6 } # upper
