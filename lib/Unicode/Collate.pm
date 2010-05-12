@@ -281,8 +281,7 @@ sub checkCollator {
     return;
 }
 
-sub new
-{
+sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
 
@@ -465,8 +464,7 @@ sub getmaxlength {
 ##
 ## get $line, parse it, and write an entry in $self
 ##
-sub parseEntry
-{
+sub parseEntry {
     my $self = shift;
     my $line = shift;
     my($name, $entry, @uv, @key);
@@ -691,8 +689,7 @@ sub _check_if_first_or_last {
 # affected by the alternate handling. If not specified, then the default is the
 # value in DUCET." (UCA §5.1)
 #
-sub _varCE
-{
+sub _varCE {
     my $vbl = shift;
     my $vce = shift;
     if ($vbl eq 'non-ignorable') {
@@ -713,14 +710,12 @@ sub _varCE
     }
 }
 
-sub viewSortKey
-{
+sub viewSortKey {
     my $self = shift;
     $self->visualizeSortKey($self->getSortKey(@_));
 }
 
-sub visualizeSortKey
-{
+sub visualizeSortKey {
     my $self = shift;
     my $view = join " ", map sprintf("%04X", $_), unpack(KEY_TEMPLATE, shift);
 
@@ -737,8 +732,7 @@ sub visualizeSortKey
 ## arrayref of JCPS   = splitEnt(string to be collated)
 ## arrayref of arrayref[JCPS, ini_pos, fin_pos] = splitEnt(string, true)
 ##
-sub splitEnt
-{
+sub splitEnt {
     my $self = shift;
     my $wLen = $_[1];
 
@@ -858,8 +852,7 @@ sub splitEnt
 ##
 ## list of VCE = getWt(JCPS)
 ##
-sub getWt
-{
+sub getWt {
     my $self = shift;
     my $u    = shift;
     my $vbl  = $self->{variable};
@@ -931,8 +924,7 @@ sub getWt
 #    "If set to on, any sequence of Decimal Digits (General_Category = Nd in
 #    the Unicode Character Database [UAX44]) is sorted at a primary level with
 #    its numeric value. For example, "A-21" < "A-123"."
-sub getSortKey
-{
+sub getSortKey {
     my $self = shift;
     my $lev  = $self->{level};
     my $rEnt = $self->splitEnt(shift); # get an arrayref of JCPS
@@ -946,7 +938,7 @@ sub getSortKey
         # weird things like VL, TL-contraction are not considered!
         my $curHST = '';
         foreach my $u (split /;/, $jcps) {
-        $curHST .= getHST($u);
+            $curHST .= getHST($u);
         }
         if ($preHST && !$curHST || # hangul before non-hangul
             $preHST =~ /L\z/ && $curHST =~ /^T/ ||
@@ -1350,8 +1342,7 @@ sub index {
 ##
 ## scalarref to matching part = match(string, substring)
 ##
-sub match
-{
+sub match {
     my $self = shift;
     if (my($pos,$len) = $self->index($_[0], $_[1])) {
         my $temp = substr($_[0], $pos, $len);
@@ -1367,8 +1358,7 @@ sub match
 ##
 ## arrayref matching parts = gmatch(string, substring)
 ##
-sub gmatch
-{
+sub gmatch {
     my $self = shift;
     my $str  = shift;
     my $sub  = shift;
@@ -1379,8 +1369,7 @@ sub gmatch
 ##
 ## bool subst'ed = subst(string, substring, replace)
 ##
-sub subst
-{
+sub subst {
     my $self = shift;
     my $code = ref $_[2] eq 'CODE' ? $_[2] : FALSE;
 
@@ -1401,8 +1390,7 @@ sub subst
 ##
 ## int count = gsubst(string, substring, replace)
 ##
-sub gsubst
-{
+sub gsubst {
     my $self = shift;
     my $code = ref $_[2] eq 'CODE' ? $_[2] : FALSE;
     my $cnt = 0;
