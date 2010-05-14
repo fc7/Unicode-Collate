@@ -1682,7 +1682,7 @@ or -1 (when C<$a> is lesser than C<$b>).
 
 =item C<$result = $Collator-E<gt>ge($a, $b)>
 
-They works like the same name operators as theirs.
+They work like the same-named built-in operators.
 
    eq : whether $a is equal to $b.
    ne : whether $a is not equal to $b.
