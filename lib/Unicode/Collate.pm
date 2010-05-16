@@ -464,11 +464,21 @@ sub getmaxlength {
 
     if ($self->{table_is_compiled}) {
         my $k = CODE_SEP . $key; # maxlengths are stored as ";<codepoint>" in the DBM
-        my $max = $self->{tiedhash}{$k};
-        return $max if $max;
+        if (exists $self->{tiedhash}{$k}) {
+            return $self->{tiedhash}{$k}
+        }
     }
 
     return
+}
+
+sub setmaxlength {
+    my ($self, @uv) = @_;
+    if (@uv > 1) {
+        if ( !$self->getmaxlength($uv[0]) || $self->getmaxlength($uv[0]) < @uv ) {
+            $self->{maxlength}{$uv[0]} = @uv
+        }
+    }
 }
 
 ##
@@ -556,11 +566,8 @@ sub parseEntry {
         $self->_check_if_first_or_last("non_ignorable", @uv);
     }
 
-    if (@uv > 1) {
-        if ( !$self->getmaxlength($uv[0]) || $self->getmaxlength($uv[0]) < @uv ) {
-            $self->{maxlength}{$uv[0]} = @uv
-        }
-    }
+    $self->setmaxlength(@uv);
+
 }
 
 #####################################################################
