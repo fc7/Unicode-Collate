@@ -734,7 +734,9 @@ sub viewSortKey {
 
 sub visualizeSortKey {
     my $self = shift;
-    my $view = join " ", map sprintf("%04X", $_), unpack(KEY_TEMPLATE, shift);
+    my $key  = shift;
+    #TODO return "[]" unless defined $key;
+    my $view = join " ", map sprintf("%04X", $_), unpack(KEY_TEMPLATE, $key);
 
     if ($self->{UCA_Version} <= 8) {
         $view =~ s/ ?0000 ?/|/g;
@@ -943,8 +945,9 @@ sub getWt {
 #    its numeric value. For example, "A-21" < "A-123"."
 sub getSortKey {
     my $self = shift;
+    my $str  = shift;
     my $lev  = $self->{level};
-    my $rEnt = $self->splitEnt(shift); # get an arrayref of JCPS
+    my $rEnt = $self->splitEnt($str); # get an arrayref of JCPS
     my $v2i  = $self->{UCA_Version} >= 9 &&
         $self->{variable} ne 'non-ignorable';
 
