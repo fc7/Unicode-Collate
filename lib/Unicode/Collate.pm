@@ -21,9 +21,10 @@ our $PACKAGE = __PACKAGE__;
 
 my @Path = qw(Unicode Collate);
 # prefer pre-compiled version
-my $KeyFile = "allkeys.db";
+my $KeyFileDB  = "allkeys.db";
+my $KeyFileTxt = "allkeys.txt";
 
-# Perl's boolean
+# Perl's booleans
 use constant TRUE  => 1;
 use constant FALSE => "";
 use constant NOMATCHPOS => -1;
@@ -267,7 +268,7 @@ sub new
     my $self = bless { @_ }, $class;
 
     # If undef is passed explicitly, no file is read.
-    $self->{table} = $KeyFile if ! exists $self->{table};
+    $self->{table} = $KeyFileDB if ! exists $self->{table};
     $self->{table_is_compiled} = TRUE
         if ( defined $self->{table} and ( $self->{table} =~ /\.db$/ ) );
     if (defined $self->{table}) {
@@ -352,16 +353,25 @@ sub read_table {
 sub read_compiled_table {
     my $self = shift;
 
-    my($f, $fh);
-    foreach my $d (@INC) {
-        $f = File::Spec->catfile($d, @Path, $self->{table});
-        last if open($fh, $f);
-        $f = undef;
+    my $f;
+    # enable passing absolute filename
+    if (File::Spec->file_name_is_absolute($self->{table})) {
+        $f = $self->{table};
+    }
+    else {
+        foreach my $d (@INC) {
+            $f = File::Spec->catfile($d, @Path, $self->{table});
+            last if -f $f;
+            $f = undef;
+        }
     }
     if (!defined $f) {
-        $f = File::Spec->catfile(@Path, $self->{table});
-        #TODO carp instead and call read_table on "allkeys.txt"
-        croak("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
+            $f = File::Spec->catfile(@Path, $self->{table});
+            carp("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
+            $self->{table} =~ s/\.db$/.txt/;
+            carp("Trying with uncompiled table ", $self->{table}, " instead");
+            $self->read_table;
+            return
     }
 
     tie my %MAPPING, 'GDBM_File', $f, &GDBM_READER, 0644
