@@ -581,52 +581,130 @@ sub parse_ICU_rules {
     my @rulestrings = split /\s*&\s*/, $rulestr;
     my %levels = ( '<' => '1', '<<' => '2', '<<<' => '3', '<<<<' => '4', '=' => '5' );
 
-    #TODO assign logical resets to real codepoints
     foreach my $rule (@rulestrings) {
-        my $forward  = 1;
-        my $dirlevel = 1;
+        my $beforereset = 0;
+        my $beforelevel;
         my $reset_cp;
         my ($reset_atom) = $rule =~ /^((?:\[before .\]\s+)?\S+)/;
         $rule =~ s/^((?:\[before .\]\s+)?\S+)\s+//;
 
         if ($reset_atom =~ /before/) {
-            $forward = 0;
-            ($dirlevel, $reset_cp) = $reset_atom =~ /^\[before\s+(.)\]\s+(\S+)/;
-        } else {
+            ($beforelevel, $reset_cp) = $reset_atom =~ /^\[before\s+(.)\]\s+(\S+)/;
+            #We count the number of operators of the $beforelevel in the string $rule:
+            my $lt = '<';
+            my $op = $lt;
+            for (my $i=1;$i<$beforelevel;$i++) {
+                $op .= $lt;
+            }
+            #This is the amount we need to substract the weight of the reset_cp at $beforelevel
+            $beforereset = () = $rule =~ /(?:^|\s)$op(?:\s|$)/g;
+            $beforereset++;
+        }
+        # handle logical resets
+        elsif ($reset_atom =~ /\[([a-z_]+)\]/) {
+            if ($self->{$1}) {
+                $reset_cp = pack_U($self->{$1});
+            }
+            else {
+                carp "Undefined logical reset point '$1'. Skipping ICU rule $rule";
+                next
+            }
+        }
+        else {
             $reset_cp = $reset_atom;
         }
 
+        #TODO my $iterator = $self->_get_weight_array($reset_cp);
+        # When incrementing at level N, reset the weights at levels > N
+        # to their previous state
+
+        my $firstrule = 1;
+
         while ( my ($operator, $second, $rest) =
                     $rule =~ /^\s*(<+|=)\s+(\S+(?:\s*(?:\/|\|)\s*\S+)?)\s*(.*)$/ ) {
-            $forward ? $self->putAfterKey($reset_cp, $second, $levels{$operator})
-                     : $self->putBeforeKey($reset_cp, $second, $levels{$operator});
+            if ($second =~ m|\/|) {
+                my ($tmpa, $tmpb) = $second =~ m|(\S+)\s*/\s*(\S+)|;
+                $reset_cp .= $tmpb;
+                $second = $tmpa;
+            }
+            elsif ($second =~ m/\|/) {
+                croak "Handling of rules with context not yet supported"
+            }
+
+            my $reset_key = _get_key($reset_cp);
+            my $newkey = _get_key($second);
+            my $wa = $self->_get_weight_array($reset_key);
+            croak "cannot get weight array for \"$reset_key\"" unless ref $wa eq 'ARRAY';
+            my $level = $levels{$operator};
+            # FIXME where to increment the weight: first or last subelement?
+            my $element = 0; # -> -1 ??
+
+            if ($level < 5) {
+                # for a "before" rule, we need to reset the weight of the initial reset_cp
+                if ($beforereset && $firstrule) {
+                    croak "Illegal ICU rule with '[before $beforelevel]' reset followed by rule at level $level"
+                        unless $beforelevel == $level;
+                    $wa->[$element]->[$level] -= $beforereset;
+                }
+                $wa->[$element]->[$level]++;
+            }
+
+            my @uv = unpack_U($second);
+
+            ##TODO??? assign code point(s) to 4th level
+            #for (my $i=0; $i<@$wa; $i++) {
+            #    my $x = $#uv <= $i ? $uv[$i] : 0;
+            #    $wa->[$i]->[4] = $x;
+            #}
+
+            $self->_pack_weight_array($newkey, $wa);
+
+            # Assign also the equivalent canonical composition or decomposition
+            # to that collation element
+            require Unicode::UCD;
+            my $newkey_alt;
+            if ( grep {Unicode::UCD::charinfo($_)->{decomposition}} @uv ) {
+                $newkey_alt = _get_key(Unicode::Normalize::NFD($second));
+                $self->_pack_weight_array($newkey_alt, $wa);
+            }
+            elsif ( grep {Unicode::UCD::charinfo($_)->{combining}} @uv ) {
+                $newkey_alt = _get_key(Unicode::Normalize::NFC($second));
+                $self->_pack_weight_array($newkey_alt, $wa);
+            }
+
             $rule = $rest;
+            $reset_cp = $second;
+            $firstrule = 0;
         }
     }
 }
 
-# get internal hash key for codepoint(s) $str
-sub _get_key_from_str {
+sub _get_key {
     my $str = shift;
-    if (length $str > 3) {
-        carp "arg '$str' has more than 3 characters: ignoring trailing ones";
-        $str = substr($str, 0, 3);
-    }
-    if (length $str > 1) { # two or three code points
-        my @chars = split //, $str;
-        return join(CODE_SEP, ( map { ord $_ } @chars) );
-    }
-    else { # one char
-        return ord($str)
-    }
+#    if (length $str > 3) {
+#        carp "arg '$str' has more than 3 characters: ignoring trailing ones";
+#        $str = substr($str, 0, 3);
+#    }
+    my @uv = unpack_U($str);
+    return join(CODE_SEP, @uv)
 }
 
 # get CE as an arrayref of arrayrefs:
 sub _get_weight_array {
-    my ($self, $str) = @_;
-    my $arg = _get_key_from_str($str);
-    my $map = $self->getmap($arg);
-    return unless $map;
+    my ($self, $key) = @_;
+    my $map;
+    if ($self->getmap($key)) {
+        $map = $self->getmap($key);
+    }
+    else { # if contraction is not defined, we build it from individual code points
+        my @tmp;
+        foreach my $a (split(CODE_SEP, $key)) {
+            my $m = $self->getmap($a);
+            return unless $m; # each code point must have a CE
+            push @tmp, @$m;
+        }
+        $map = [@tmp];
+    }
     my @ret;
     foreach my $m (@$map) {
         push @ret, [ map { unpack(VCE_TEMPLATE, $_) } $m ];
@@ -635,37 +713,14 @@ sub _get_weight_array {
 }
 
 sub _pack_weight_array {
-    my ($self, $str, $weightArray) = @_;
-    my $arg = _get_key_from_str($str);
-    my @key;
+    my ($self, $entry, $weightArray) = @_;
+    my @CE;
     foreach my $m (@$weightArray) {
-        push @key, pack(VCE_TEMPLATE, @$m)
+        push @CE, pack(VCE_TEMPLATE, @$m)
     }
-    $self->{mapping}{$arg} = \@key
-}
-
-# set key of $new after that of $ref at $level
-sub putAfterKey {
-    my ($self, $ref, $new, $level) = @_;
-    if ($level==5) {
-        $self->{mapping}{_get_key_from_str($new)} = $self->getmap(_get_key_from_str($ref));
-        return;
-    }
-    my $wa = $self->_get_weight_array($ref);
-    $wa->[0]->[$level]++;
-    $self->_pack_weight_array($new, $wa);
-}
-
-# set key of $new before that of $ref at $level
-sub putBeforeKey {
-    my ($self, $ref, $new, $level) = @_;
-    if ($level==5) {
-        $self->{mapping}{_get_key_from_str($new)} = $self->getmap(_get_key_from_str($ref));
-        return;
-    }
-    my $wa = $self->_get_weight_array($ref);
-    $wa->[0]->[$level]--;
-    $self->_pack_weight_array($new, $wa);
+    $self->{mapping}{$entry} = \@CE;
+    my @uv = split(CODE_SEP, $entry);
+    $self->setmaxlength(@uv) if @uv > 1;
 }
 
 sub _check_if_first_or_last {
