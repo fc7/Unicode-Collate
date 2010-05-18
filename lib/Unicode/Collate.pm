@@ -398,9 +398,9 @@ sub read_compiled_table {
     }
     if (!defined $f) {
             $f = File::Spec->catfile(@Path, $self->{table});
-            carp("$PACKAGE: Can't locate $f in \@INC (\@INC contains: @INC)");
             $self->{table} =~ s/\.db$/.txt/;
-            carp("Trying with uncompiled table ", $self->{table}, " instead");
+            carp("$PACKAGE: Can't locate $f in \@INC\n", 
+                 "Trying with uncompiled table ", $self->{table}, " instead");
             $self->read_table;
             return
     }
