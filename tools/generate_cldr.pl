@@ -6,8 +6,11 @@ use Data::Dump; # temporary
 use Carp;
 use FindBin qw($Bin);
 use File::Spec;
+use List::Util qw(first);
 binmode(STDOUT, ':utf8');
 
+use lib "$Bin/../lib";
+use Unicode::Collate;
 
 #TODO
 #my @ldml_files = glob(Find::Spec->catfile($Bin, qw(.. data CLDR collation), "*.xml"));
@@ -26,6 +29,7 @@ my $xpc = XML::LibXML::XPathContext->new($ldml);
 
 my %levels = ( p => '<' , s => '<<' , t => '<<<', q => '<<<<', i => '=', extend => '/', context => '|' );
 # "q" is not explained in UTS#35 but stands obviously for "quaternary"
+# it is currently only used in th.xml
 
 my %levelNames = ( primary => 1 , secondary => 2 , tertiary => 3 ,
     quaternary => 4, identical => 5 );
@@ -121,7 +125,11 @@ foreach my $c ($collnodes->get_nodelist) {
     }
 }
 
-dd %tailoring;
+require Unicode::Normalize;
+#dd %tailoring;
+print $tailoring{standard}{rules} . "\n\n";
+my $c = Unicode::Collate->new(%{$tailoring{settings}}, ICU_rules => $tailoring{standard}{rules});
+#dd $c->{mapping};
 
 sub process_rules {
     my $collnode = shift;
@@ -136,8 +144,18 @@ sub process_rules {
                 my $before_value = $child->find('@before')->string_value;
                 $str .= '[before ' . $levelNames{$before_value} . '] ';
             }
-            #TODO if $child->nodeType == 1 then use "[$child->nodeName]" if it is in @logicalReset
-            $str .= $child->string_value . ' ';
+            if ( $child->childNodes->[0]->nodeType == 1 ) {
+                my $name = $child->childNodes->[0]->nodeName;
+                if (first { $name eq $_ } @logicalResets) {
+                    $str .= "[$name] "
+                } 
+                else {
+                    croak "Unknown logical reset $name"
+                }
+            } 
+            else {
+                $str .= $child->string_value . ' ';
+            }
         }
         elsif ($name eq 'x') {
             foreach my $grandchild ($child->childNodes) {
