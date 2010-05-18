@@ -917,8 +917,8 @@ sub getSortKey
     foreach my $jcps (@$rEnt) {
         # weird things like VL, TL-contraction are not considered!
         my $curHST = '';
-        foreach my $u (split /;/, $jcps) {
-        $curHST .= getHST($u);
+        foreach my $u (split(CODE_SEP, $jcps)) {
+            $curHST .= getHST($u);
         }
         if ($preHST && !$curHST || # hangul before non-hangul
             $preHST =~ /L\z/ && $curHST =~ /^T/ ||
