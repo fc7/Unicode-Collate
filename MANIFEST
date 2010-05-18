@@ -1,5 +1,6 @@
 Changes
 lib/Unicode/Collate.pm
+lib/Unicode/Collate/CompileTable.pm
 Collate.xs
 lib/Unicode/Collate/allkeys.txt
 lib/Unicode/Collate/keys.txt
