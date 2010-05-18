@@ -18,7 +18,6 @@ use strict;
 use warnings;
 use utf8;
 use Unicode::Collate;
-use Data::Dump;
 
 my $c=Unicode::Collate->new(
     table=>"keys.db",
