@@ -162,7 +162,9 @@ sub _varCE
 sub visualizeSortKey
 {
     my $self = shift;
-    my $view = join " ", map sprintf("%04X", $_), unpack(KEY_TEMPLATE, shift);
+    my $key  = shift;
+    #TODO return "[]" unless defined $key;
+    my $view = join " ", map sprintf("%04X", $_), unpack(KEY_TEMPLATE, $key);
 
     if ($self->{UCA_Version} <= 8) {
         $view =~ s/ ?0000 ?/|/g;
@@ -906,7 +908,8 @@ sub getWt
 sub getSortKey
 {
     my $self = shift;
-    my $rEnt = $self->splitEnt(shift); # get an arrayref of JCPS
+    my $str  = shift;
+    my $rEnt = $self->splitEnt($str); # get an arrayref of JCPS
 
     my @buf; # weight arrays
     if ($self->{hangul_terminator}) {
