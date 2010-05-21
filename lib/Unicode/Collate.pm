@@ -930,11 +930,21 @@ sub getWt {
     my $self = shift;
     my $u    = shift;
     my $vbl  = $self->{variable};
-    my $der  = $self->{derivCode};
 
     return if !defined $u;
     return map(_varCE($vbl, $_), @{ $self->getmap($u) })
         if $self->getmap($u);
+
+    return $self->get_derived_Wt($u, $vbl);
+}
+
+sub get_derived_Wt {
+    my $self = shift;
+    my $u    = shift;
+    my $vbl  = shift || $self->{variable};
+    my $der  = $self->{derivCode};
+
+    return if !defined $u;
 
     # JCPS must not be a contraction, then it's a code point.
     if (Hangul_SIni <= $u && $u <= Hangul_SFin) {
@@ -989,7 +999,6 @@ sub getWt {
         return map _varCE($vbl, $_), $der->($u);
     }
 }
-
 
 ##
 ## string sortkey = getSortKey(string arg)
