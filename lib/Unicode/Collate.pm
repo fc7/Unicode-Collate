@@ -399,7 +399,7 @@ sub read_compiled_table {
     if (!defined $f) {
             $f = File::Spec->catfile(@Path, $self->{table});
             $self->{table} =~ s/\.db$/.txt/;
-            carp("$PACKAGE: Can't locate $f in \@INC\n", 
+            carp("$PACKAGE: Can't locate $f in \@INC\n",
                  "Trying with uncompiled table ", $self->{table}, " instead");
             $self->read_table;
             return
