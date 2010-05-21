@@ -12,7 +12,7 @@ BEGIN {
 }
 
 use Test;
-BEGIN { plan tests => 19 };
+BEGIN { plan tests => 20 };
 
 use strict;
 use warnings;
@@ -40,7 +40,8 @@ my $icu_rules_SV = <<END ;
 & D << đ <<< Đ << ð <<< Ð 
 & th <<< þ
 & T <<< Þ / H
-& v <<< w             & V <<< W 
+& v <<< w             & V <<< 
+W
 & Y << ü <<< Ü << ű <<< Ű 
 & [before 1] ʒ < å <<< Å < ä <<< Ä << æ <<< Æ << ę <<< Ę < ö <<< Ö << ø <<< Ø << ő <<< Ő << œ <<< Œ << ô <<< Ô 
 END
@@ -69,3 +70,4 @@ ok($c3->eq("e\x{328}", "\x{119}"));
 $c3->change(level=>2);
 # v and w only differ at level 3
 ok($c3->eq("wovel", "vowel"));
+ok($c3->eq("WOVEL", "VOWEL"));
