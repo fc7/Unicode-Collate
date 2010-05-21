@@ -658,7 +658,11 @@ sub parse_ICU_rules {
             # Assign also the equivalent canonical composition or decomposition
             # to that collation element
             require Unicode::UCD;
+            require Unicode::Normalize;
+
             my $newkey_alt;
+            #FIXME per LDML specs all elements should be in NFD form, perhaps we
+            #      should check with U::N::checkNFD($second) ??
             if ( grep {Unicode::UCD::charinfo($_)->{decomposition}} @uv ) {
                 $newkey_alt = _get_key(Unicode::Normalize::NFD($second));
                 $self->_pack_weight_array($newkey_alt, $wa);
