@@ -693,18 +693,28 @@ sub _get_key {
 sub _get_weight_array {
     my ($self, $key) = @_;
     my $map;
+    my @a = split(CODE_SEP, $key);
     if ($self->getmap($key)) {
         $map = $self->getmap($key);
     }
-    else { # if contraction is not defined, we build it from individual code points
+    elsif (@a == 1) {
+        $map = [$self->get_derived_Wt($key, 'non-ignorable')]
+    }
+    elsif (scalar grep { defined $self->getmap($_) } @a == @a) {
+        # if contraction is not defined, we build it from individual code points
+        # provided getmap is defined for each
         my @tmp;
-        foreach my $a (split(CODE_SEP, $key)) {
+        foreach my $a (@a) {
             my $m = $self->getmap($a);
-            return unless $m; # each code point must have a CE
+            ## return unless $m; # each code point must have a CE
             push @tmp, @$m;
         }
         $map = [@tmp];
     }
+    else {
+        return
+    }
+
     my @ret;
     foreach my $m (@$map) {
         push @ret, [ map { unpack(VCE_TEMPLATE, $_) } $m ];
