@@ -305,7 +305,9 @@ sub new {
         }
     }
 
-    #TODO if ($self->{locale}) { $self->load_locale($self->{locale}) }
+    if (exists $self->{locale}) {
+        $self->load_locale()
+    }
 
     if ($self->{ICU_rules}) {
         $self->parse_ICU_rules($self->{ICU_rules})
@@ -477,6 +479,34 @@ sub setmaxlength {
     if (@uv > 1) {
         if ( !$self->getmaxlength($uv[0]) || $self->getmaxlength($uv[0]) < @uv ) {
             $self->{maxlength}{$uv[0]} = @uv
+        }
+    }
+}
+
+sub load_locale {
+    my $self = shift;
+    require Unicode::Collate::Locale;
+
+    #If the value of the parameter "locale" is "current" or undef,
+    #then we use the value of the currently defined locale
+    my $locale = $self->{locale} || 'current';
+    if ( $locale eq 'current' ) {
+        $locale = $ENV{LC_COLLATE} || $ENV{LANG} || $ENV{LC_ALL};
+        if ( $locale eq 'current' ) {
+            carp "$PACKAGE: Could not get the current locale for collation";
+            return
+        }
+    }
+    ## In addition to "locale" one can also pass the parameter "collation_type"
+    ## (e.g. "standard", "reformed", "phonebook", "unihan", etc.)
+    my $type   = $self->{collation_type} || undef;
+    my $loc    = Unicode::Collate::Locale->load($locale);
+    my %tailoring = $loc->tailoring($type);
+    if (%tailoring) {
+       foreach my $k (keys %tailoring) {
+            $k eq 'ICU_rules'
+                ? $self->parse_ICU_rules($tailoring{$k})
+                : $self->{$k} = $tailoring{$k}
         }
     }
 }
