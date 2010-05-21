@@ -590,13 +590,9 @@ sub parse_ICU_rules {
 
         if ($reset_atom =~ /before/) {
             ($beforelevel, $reset_cp) = $reset_atom =~ /^\[before\s+(.)\]\s+(\S+)/;
+            my $op = '<' x $beforelevel;
             #We count the number of operators of the $beforelevel in the string $rule:
-            my $lt = '<';
-            my $op = $lt;
-            for (my $i=1;$i<$beforelevel;$i++) {
-                $op .= $lt;
-            }
-            #This is the amount we need to substract the weight of the reset_cp at $beforelevel
+            #this is the amount we need to substract the weight of the reset_cp at $beforelevel
             $beforereset = () = $rule =~ /(?:^|\s)$op(?:\s|$)/g;
             $beforereset++;
         }
