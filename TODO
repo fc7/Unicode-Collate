@@ -10,3 +10,5 @@ on http://github.com/fc7/Unicode-Collate
   http://www.unicode.org/Public/UCA/5.2.0/CollationTest.zip
   pass (currently they do not).
 * Benchmark this fork (PP and XS) against v0.52 on CPAN (PP and XS).
+* Implement rules with context (used in CLDR for Japanese): need efficient algorithm for that!
+* Allow more than one locale (assuming their rules are non-conflicting: eg ['fr', 'ja']).

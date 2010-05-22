@@ -307,6 +307,8 @@ sub process_rule {
     return $str;
 }
 
+# Dump a hashref as a hash
+# (has the advantage over dumping a hash that it keeps the => operators intact)
 sub dump_hash {
     my $hashref = shift;
     my $dump = Data::Dump::pp($hashref);
