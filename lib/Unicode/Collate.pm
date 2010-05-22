@@ -657,12 +657,17 @@ sub parse_ICU_rules {
                 croak "Handling of rules with context not yet supported"
             }
 
+            #FIXME per LDML specs all elements should be in NFD form, perhaps we
+            #      should check with U::N::checkNFD() and convert if necessary?
             my $reset_key = _get_key($reset_cp);
             my $newkey = _get_key($second);
+
             my $wa = $self->_get_weight_array($reset_key);
             croak "cannot get weight array for \"$reset_key\"" unless ref $wa eq 'ARRAY';
+
             my $level = $levels{$operator};
-            # FIXME where to increment the weight: first or last subelement?
+
+            # FIXME where should we increment the weight: first or last subelement?
             my $element = 0; # -> -1 ??
 
             if ($level < 5) {
@@ -687,19 +692,17 @@ sub parse_ICU_rules {
 
             # Assign also the equivalent canonical composition or decomposition
             # to that collation element
-            require Unicode::UCD;
             require Unicode::Normalize;
 
             my $newkey_alt;
-            #FIXME per LDML specs all elements should be in NFD form, perhaps we
-            #      should check with U::N::checkNFD($second) ??
-            if ( grep {Unicode::UCD::charinfo($_)->{decomposition}} @uv ) {
+
+            if ( Unicode::Normalize::checkNFC($second) ) {
                 $newkey_alt = _get_key(Unicode::Normalize::NFD($second));
-                $self->_pack_weight_array($newkey_alt, $wa);
+                $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa);
             }
-            elsif ( grep {Unicode::UCD::charinfo($_)->{combining}} @uv ) {
+            elsif ( @uv > 1 && Unicode::Normalize::checkNFD($second) ) {
                 $newkey_alt = _get_key(Unicode::Normalize::NFC($second));
-                $self->_pack_weight_array($newkey_alt, $wa);
+                $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa);
             }
 
             $rule = $rest;
