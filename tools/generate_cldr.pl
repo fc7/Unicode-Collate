@@ -101,7 +101,7 @@ my $COMMENT_HEADER =<<END;
 
 END
 
-my $Locale_Dir = File::Spec->catfile(qw(.. lib Unicode Collate Locale));
+my $Locale_Dir = File::Spec->catfile($Bin, qw(.. lib Unicode Collate Locale));
 
 if (-d $Locale_Dir) {
     my @locdirfiles = glob(File::Spec->catfile($Locale_Dir, '*.pm'));
