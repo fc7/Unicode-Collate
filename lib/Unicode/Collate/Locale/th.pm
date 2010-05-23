@@ -14,7 +14,7 @@ our %tailoring =
 & \x{E44} < \x{E45} 
 & [before 2] \x{E47} << \x{E4E} 
 & \x{E4B} << \x{E4C} << \x{E4D} 
-& [last_secondary_ignorable] <<<   <<< - <<< . <<< ... <<< \x{E2F} <<< \x{E46} <<< \x{E4F} <<< \x{E5A} <<< \x{E5B} 
+& [last_secondary_ignorable] <<< [space] <<< - <<< . <<< ... <<< \x{E2F} <<< \x{E46} <<< \x{E4F} <<< \x{E5A} <<< \x{E5B} 
 END
             settings => { normalization => "on" },
           },

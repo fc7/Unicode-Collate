@@ -628,11 +628,14 @@ sub parse_ICU_rules {
         }
         # handle logical resets
         elsif ($reset_atom =~ /\[([a-z_]+)\]/) {
-            if ($self->{$1}) {
+            if ($1 eq 'space') {
+                $reset_cp = ' '
+            }
+            elsif ($self->{$1}) {
                 $reset_cp = pack_U($self->{$1});
             }
             else {
-                carp "Undefined logical reset point '$1'. Skipping ICU rule $rule";
+                carp "Undefined logical reset point '$1'. Skipping ICU rule\n$reset_atom $rule\n";
                 next
             }
         }
@@ -655,6 +658,10 @@ sub parse_ICU_rules {
             }
             elsif ($second =~ m/\|/) {
                 croak "Handling of rules with context not yet supported"
+            }
+
+            if ($second eq '[space]') {
+                $second = ' '
             }
 
             #FIXME per LDML specs all elements should be in NFD form, perhaps we

@@ -301,6 +301,9 @@ sub process_rule {
 
     my $str = '';
     foreach my $char (@chars) {
+        if ($char eq ' ') { # this occurs in the tailoring for Thai
+            $char = '[space]'
+        };
         $str .= $levtype . ' ' . $char . ' ';
     }
 
