@@ -268,9 +268,15 @@ sub process_rules {
             }
         }
         elsif ($name eq 'x') {
+            my $xstr = '';
             foreach my $grandchild ($child->childNodes) {
-                $str .= process_rule($grandchild);
+                $xstr .= process_rule($grandchild);
             }
+            # put context after the rule operator
+            if ($child->exists('context')) {
+                $xstr =~ s/^\| (\S+) (<+|=)/$2 $1 |/;
+            }
+            $str .= $xstr
         }
         else {
             $str .= process_rule($child) ;
