@@ -70,6 +70,7 @@ use constant LEVEL_SEP => "\0\0";
 # This character must not be included in any stringified
 # representation of an integer.
 use constant CODE_SEP => ';';
+use constant CONTEXT_SEP => '|';
 
 # boolean values of variable weights
 use constant NON_VAR => 0; # Non-Variable character
@@ -615,7 +616,9 @@ sub parse_ICU_rules {
         my $beforereset = 0;
         my $beforelevel;
         my $reset_cp;
+        my $context;
         my ($reset_atom) = $rule =~ /^((?:\[before .\]\s+)?\S+)/;
+        croak "cannot get 'reset_atom' in rule\n'$rule'\n" unless defined $reset_atom;
         $rule =~ s/^((?:\[before .\]\s+)?\S+)\s+//;
 
         if ($reset_atom =~ /before/) {
@@ -657,7 +660,8 @@ sub parse_ICU_rules {
                 $second = $tmpa;
             }
             elsif ($second =~ m/\|/) {
-                croak "Handling of rules with context not yet supported"
+                ($context, my $after) = $second =~ /(\S+)\s*\|\s*(\S+)/;
+                $second = $after;
             }
 
             if ($second eq '[space]') {
@@ -695,6 +699,10 @@ sub parse_ICU_rules {
             #    $wa->[$i]->[4] = $x;
             #}
 
+            if ($context) {
+                $newkey = _get_key($context) . CONTEXT_SEP . $newkey
+            }
+
             $self->_pack_weight_array($newkey, $wa);
 
             # Assign also the equivalent canonical composition or decomposition
@@ -705,10 +713,16 @@ sub parse_ICU_rules {
 
             if ( Unicode::Normalize::checkNFC($second) ) {
                 $newkey_alt = _get_key(Unicode::Normalize::NFD($second));
+                if ($context) {
+                    $newkey_alt = _get_key($context) . CONTEXT_SEP . $newkey_alt
+                }
                 $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa);
             }
             elsif ( @uv > 1 && Unicode::Normalize::checkNFD($second) ) {
                 $newkey_alt = _get_key(Unicode::Normalize::NFC($second));
+                if ($context) {
+                    $newkey_alt = _get_key($context) . CONTEXT_SEP . $newkey_alt
+                }
                 $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa);
             }
 
