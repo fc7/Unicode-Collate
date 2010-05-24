@@ -17,7 +17,7 @@ use Perl::Tidy;
 
 binmode(STDOUT, ':utf8');
 
-my %levels = (
+my %operators = (
     p       => '<',
     s       => '<<',
     t       => '<<<',
@@ -287,14 +287,14 @@ sub process_rule {
     #  else use string_value:
     my $value = $node->string_value;
     my @chars = ($value);
-    my $levtype = '???'; # to indicate unimplemented elements
+    my $optype = '???'; # to indicate unimplemented elements
     my $basetype = $type;
     if ( $type =~ /^[psti]c$/ ) {
         $basetype =~ s/c$//;
         @chars = split //, $value;
     }
-    if ( exists $levels{$basetype} ) {
-        $levtype = $levels{$basetype} ;
+    if ( exists $operators{$basetype} ) {
+        $optype = $operators{$basetype} ;
     } else {
         carp "Unable to handle unknown element $basetype";
     }
@@ -304,7 +304,7 @@ sub process_rule {
         if ($char eq ' ') { # this occurs in the tailoring for Thai
             $char = '[space]'
         };
-        $str .= $levtype . ' ' . $char . ' ';
+        $str .= $optype . ' ' . $char . ' ';
     }
 
     return $str;
