@@ -617,6 +617,7 @@ sub parse_ICU_rules {
         my $beforelevel;
         my $reset_cp;
         my $context;
+        next unless $rule;
         my ($reset_atom) = $rule =~ /^((?:\[before .\]\s+)?\S+)/;
         croak "cannot get 'reset_atom' in rule\n'$rule'\n" unless defined $reset_atom;
         $rule =~ s/^((?:\[before .\]\s+)?\S+)\s+//;
