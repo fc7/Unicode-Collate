@@ -4,3 +4,4 @@ blib
 *.xz
 *.swp
 pm_to_blib
+tmp
