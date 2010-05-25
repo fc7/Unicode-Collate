@@ -92,7 +92,7 @@ sub rules {
     }
 
     if ($self->{$type}) {
-        return $self->{$type}{rules}
+        return $self->{$type}{rules} if exists $self->{$type}{rules}
     } else {
         carp "Collation type '$type' is not available for locale '" . $self->{id} . "'";
     }
@@ -131,6 +131,10 @@ sub default_type {
     my $self = shift;
     if ($self->{default_type}) {
         return $self->{default_type}
+    }
+    elsif (scalar $self->types == 1) {
+        my @t = $self->types;
+        return $t[0] if defined $t[0]
     }
     else {
         return 'standard'
