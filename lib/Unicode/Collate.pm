@@ -1173,7 +1173,7 @@ sub getSortKey {
 #        }
 #    }
 
-    #TODO also implement parameter "hiriganaQuaternary" (on/off)
+    #TODO also implement parameter "hiraganaQuaternary" (on/off)
     if ($self->{katakana_before_hiragana}) {
         foreach my $w (@{ $ret[2] }) {
             if    (0x0F <= $w && $w <= 0x13) { $w -= 2 } # katakana
@@ -1792,7 +1792,7 @@ If omitted, the maximum is the 4th.
 If specified, strings are normalized before preparation of sort keys
 (the normalization is executed after preprocess).
 
-A form name C<Unicode::Normalize::normalize()> accepts will be applied
+A form name that C<Unicode::Normalize::normalize()> accepts will be applied
 as C<$normalization_form>.
 Acceptable names include C<'NFD'>, C<'NFC'>, C<'NFKD'>, and C<'NFKC'>.
 See C<Unicode::Normalize::normalize()> for detail.
@@ -1805,12 +1805,12 @@ though they are not concerned with C<Unicode::Normalize::normalize()>.
 
 If C<undef> (not a string C<"undef">) is passed explicitly
 as the value for this key,
-any normalization is not carried out (this may make tailoring easier
+normalization is omitted altogether (this may make tailoring easier
 if any normalization is not desired). Under C<(normalization =E<gt> undef)>,
 only contiguous contractions are resolved;
 e.g. even if C<A-ring> (and C<A-ring-cedilla>) is ordered after C<Z>,
 C<A-cedilla-ring> would be primary equal to C<A>.
-In this point,
+Thus,
 C<(normalization =E<gt> undef, preprocess =E<gt> sub { NFD(shift) })>
 B<is not> equivalent to C<(normalization =E<gt> 'NFD')>.
 
@@ -2087,8 +2087,7 @@ If C<UCA_Version> is 8, the output is slightly different.
 
 B<DISCLAIMER:> If C<preprocess> or C<normalization> parameter is true
 for C<$Collator>, calling these methods (C<index>, C<match>, C<gmatch>,
-C<subst>, C<gsubst>) is croaked,
-as the position and the length might differ
+C<subst>, C<gsubst>) is croaked, as the position and the length might differ
 from those on the specified string.
 (And C<rearrange> and C<hangul_terminator> parameters are neglected.)
 
@@ -2278,7 +2277,7 @@ manually.
 Use of the C<normalization> parameter requires the B<Unicode::Normalize>
 module (see L<Unicode::Normalize>).
 
-If you need not it (say, in the case when you need not
+If you do not need it (say, in the case when you don't need to
 handle any combining characters),
 assign C<normalization =E<gt> undef> explicitly.
 
