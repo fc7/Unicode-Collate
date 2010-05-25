@@ -26,6 +26,11 @@ sub load {
         ($id, $type) = @{ $aliases_with_type{$id} }
     }
 
+    # if id is unavaible, try the root id:
+    unless ($available{$id}) {
+        $id =~ s/^([a-z]+)_.+$/$1/;
+    }
+
     if ($id eq 'default') {
         return bless { id => 'default' }, $class
     }
@@ -112,7 +117,7 @@ sub settings {
     if ($self->{$type}) {
         return %{$self->{$type}{settings}}
     } else {
-        carp "Collation type '$type' is not available for locale '" . $self->{id} . "'"
+        carp sprintf "Collation type '%s' is not available for locale '%s'", $type, $self->{id}
     }
 
     return
@@ -125,6 +130,10 @@ sub version {
 
 sub types {
     return @{shift->{types}}
+}
+
+sub id {
+    return shift->{id}
 }
 
 sub default_type {
