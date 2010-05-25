@@ -306,14 +306,6 @@ sub new {
         }
     }
 
-    if (exists $self->{locale}) {
-        $self->load_locale()
-    }
-
-    if ($self->{ICU_rules}) {
-        $self->parse_ICU_rules($self->{ICU_rules})
-    }
-
     $self->{level} ||= DefaultLevel; # changed from MaxLevel
     $self->{UCA_Version} ||= UCA_Version();
 
@@ -330,6 +322,14 @@ sub new {
         if ! exists $self->{backwards};
 
     $self->checkCollator();
+
+    if (exists $self->{locale}) {
+        $self->load_locale()
+    }
+
+    if ($self->{ICU_rules}) {
+        $self->parse_ICU_rules($self->{ICU_rules})
+    }
 
     return $self;
 }
