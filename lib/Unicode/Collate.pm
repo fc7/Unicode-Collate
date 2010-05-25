@@ -750,13 +750,14 @@ sub _get_weight_array {
     my @a = split(CODE_SEP, $key);
     if ($self->getmap($key)) {
         $map = $self->getmap($key);
+        return [[0,0,0,0]] unless defined $map->[0];
     }
     elsif (@a == 1) {
         $map = [$self->get_derived_Wt($key, 'non-ignorable')]
     }
+    # if contraction is not defined, we build it from individual code points
+    # provided getmap is defined for each
     elsif (scalar grep { defined $self->getmap($_) } @a == @a) {
-        # if contraction is not defined, we build it from individual code points
-        # provided getmap is defined for each
         my @tmp;
         foreach my $a (@a) {
             my $m = $self->getmap($a);
