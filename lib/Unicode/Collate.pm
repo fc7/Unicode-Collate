@@ -321,12 +321,34 @@ sub new {
     $self->{backwards} = $self->{backwardsTable}
         if ! exists $self->{backwards};
 
-    $self->checkCollator();
-
     if (exists $self->{locale}) {
-        $self->load_locale()
+        my $loc      = $self->load_locale;
+        unless ($loc && $loc->isa("Unicode::Collate::Locale")) {
+            croak sprintf "Could not get locale object from '%s'", $self->{locale}
+        }
+        ## In addition to "locale" one can also pass the parameter "collation_type"
+        ## (e.g. "standard", "reformed", "phonebook", "unihan", etc.)
+        my $type     = $self->{collation_type} || undef;
+
+        my %settings = $loc->settings($type);
+
+        foreach my $k (keys %settings) {
+            $self->{$k} = $settings{$k}
+        }
+
+        #this needs to be done before parsing ICU rules
+        $self->checkCollator();
+
+        my $rules = $loc->rules($type);
+
+        $self->parse_ICU_rules($rules) if $rules;
+    }
+    else {
+        $self->checkCollator();
     }
 
+    #this is only when ICU_rules => "..." is passed explicitly to U::C->new
+    #it should overwrite the CLDR rules, if any
     if ($self->{ICU_rules}) {
         $self->parse_ICU_rules($self->{ICU_rules})
     }
@@ -498,18 +520,8 @@ sub load_locale {
             return
         }
     }
-    ## In addition to "locale" one can also pass the parameter "collation_type"
-    ## (e.g. "standard", "reformed", "phonebook", "unihan", etc.)
-    my $type   = $self->{collation_type} || undef;
     my $loc    = Unicode::Collate::Locale->load($locale);
-    my %tailoring = $loc->tailoring($type);
-    if (%tailoring) {
-       foreach my $k (keys %tailoring) {
-            $k eq 'ICU_rules'
-                ? $self->parse_ICU_rules($tailoring{$k})
-                : $self->{$k} = $tailoring{$k}
-        }
-    }
+    return $loc
 }
 
 ##
