@@ -62,11 +62,19 @@ sub tailoring {
     }
 
     if ($self->{$type}) {
-        return
-            (
-                %{$self->{$type}{settings}},
-                ICU_rules => $self->{$type}{rules},
-            )
+        if ($self->rules($type)) {
+            return
+                (
+                    %{$self->{$type}{settings}},
+                    ICU_rules => $self->{$type}{rules},
+                )
+        }
+        else {
+            return
+                (
+                    %{$self->{$type}{settings}},
+                )
+        }
     } else {
         carp "Collation type '$type' is not available for locale '" . $self->{id} . "'"
     }
