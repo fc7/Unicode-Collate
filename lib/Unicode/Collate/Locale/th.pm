@@ -7,6 +7,7 @@ package Unicode::Collate::Locale::th;
 
 our %tailoring = 
     (
+      default_type => "standard_proposed",
       standard => {
             rules => <<END,
 & \x{E24} < \x{E24}\x{E45} 

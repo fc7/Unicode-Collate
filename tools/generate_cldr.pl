@@ -143,6 +143,15 @@ sub parse_ldml {
             return
         }
     }
+    ### this fix is needed with CLDR 1.8. Make sure to check when
+    if ($locale_id eq 'th') {
+        $tailoring->{default_type} = 'standard_proposed';
+        unless ($CLDR_Version =~ /^1\.8/) {
+            say "*** NB: Changed default_type for Thai from 'standard' to 'standard_proposed'";
+            say "(the former does not work with DUCET as it uses a non-available logical reset).";
+            say "This was necessary as of CLDR v1.8.x but it may no longer be necessary with v$CLDR_Version";
+        }
+    }
 
     my $collnodes = $xpc->findnodes('/ldml/collations/collation');
 
