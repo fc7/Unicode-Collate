@@ -35,6 +35,7 @@ use lib 't/lib';
 use UCATest;
 
 my $DUCET_VERSION = '5.2.0';
+use 5.012; # because we need Unicode::Normalize with unicore database based on Unicode 5.2.0!
 
 if ($ENV{TEST_UCA_CONFORMANCE}) {
     plan( tests => 152854 ); # = ($no_of_lines - 1) + 1;
@@ -44,7 +45,7 @@ else {
 }
 #########################
 
-my $Collator = Unicode::Collate->new(); # use defaults
+my $Collator = Unicode::Collate->new(); # use defaults (with NFD normalization)
 
 ok($Collator->{versionTable} eq $DUCET_VERSION, "DUCET version");
 
