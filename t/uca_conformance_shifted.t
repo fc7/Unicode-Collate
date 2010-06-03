@@ -28,29 +28,33 @@ BEGIN {
 use strict;
 use warnings;
 use Test::More;
+
+if ($ENV{TEST_UCA_CONFORMANCE}) {
+    plan( tests => 152853 ); # = ($no_of_lines - 1);
+}
+else {
+    plan( skip_all => "official UCA conformance tests (set TEST_UCA_CONFORMANCE=1 to enable)" );
+}
+
 use Unicode::Collate;
+use Unicode::UCD;
 use IO::File;
 no locale; # so that gt is done by code point order
 use lib 't/lib';
 use UCATest;
 
-my $DUCET_VERSION = '5.2.0';
-use 5.012; # because we need Unicode::Normalize with unicore database based on Unicode 5.2.0!
+my $UNICODE_VERSION = Unicode::UCD::UnicodeVersion;
+my @UV = split('.', $UNICODE_VERSION);
+if ($UV[0] < 5) {
+    die "Your version of Perl ($]) does not support Unicode >= 5.0.0)";
+}
 
-if ($ENV{TEST_UCA_CONFORMANCE}) {
-    plan( tests => 152854 ); # = ($no_of_lines - 1) + 1;
-}
-else {
-    plan( skip_all => "official UCA conformance tests (set TEST_UCA_CONFORMANCE=1 to enable)" );
-}
 #########################
 
 my $Collator = Unicode::Collate->new(); # use defaults (with NFD normalization)
 
-ok($Collator->{versionTable} eq $DUCET_VERSION, "DUCET version");
-
 ##############
-chdir "t/data" or die "Cannot chdir to 't/data'";
+chdir "t/data/$UNICODE_VERSION" or die "Cannot chdir to 't/data/$UNICODE_VERSION'";
 my $testfile = 'CollationTest_SHIFTED.txt';
 
 my $testfh = new IO::File;
@@ -64,4 +68,3 @@ $testfh->close;
 print "==================================================\n";
 print "Finished \n";
 print "==================================================\n\n\n";
-#done_testing();
