@@ -629,6 +629,7 @@ sub parse_ICU_rules {
         my $beforelevel;
         my $reset_cp;
         my $context;
+        my $context_key;
         next unless $rule;
         my ($reset_atom) = $rule =~ /^((?:\[before .\]\s+)?\S+)/;
         croak "cannot get 'reset_atom' in rule\n'$rule'\n" unless defined $reset_atom;
@@ -674,6 +675,7 @@ sub parse_ICU_rules {
             }
             elsif ($second =~ m/\|/) {
                 ($context, my $after) = $second =~ /(\S+)\s*\|\s*(\S+)/;
+                $context_key = _get_key($context);
                 $second = $after;
             }
 
@@ -712,11 +714,11 @@ sub parse_ICU_rules {
             #    $wa->[$i]->[4] = $x;
             #}
 
-            if ($context) {
-                $newkey = _get_key($context) . CONTEXT_SEP . $newkey
-            }
+#            if ($context) {
+#                $newkey = _get_key($context) . CONTEXT_SEP . $newkey
+#            }
 
-            $self->_pack_weight_array($newkey, $wa);
+            $self->_pack_weight_array($newkey, $wa, $context_key);
 
             # Assign also the equivalent canonical composition or decomposition
             # to that collation element
@@ -726,17 +728,17 @@ sub parse_ICU_rules {
 
             if ( Unicode::Normalize::checkNFC($second) ) {
                 $newkey_alt = _get_key(Unicode::Normalize::NFD($second));
-                if ($context) {
-                    $newkey_alt = _get_key($context) . CONTEXT_SEP . $newkey_alt
-                }
-                $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa);
+#                if ($context) {
+#                    $newkey_alt = _get_key($context) . CONTEXT_SEP . $newkey_alt
+#                }
+                $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa, $context_key);
             }
             elsif ( @uv > 1 && Unicode::Normalize::checkNFD($second) ) {
                 $newkey_alt = _get_key(Unicode::Normalize::NFC($second));
-                if ($context) {
-                    $newkey_alt = _get_key($context) . CONTEXT_SEP . $newkey_alt
-                }
-                $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa);
+#                if ($context) {
+#                    $newkey_alt = _get_key($context) . CONTEXT_SEP . $newkey_alt
+#                }
+                $newkey_alt ne $newkey && $self->_pack_weight_array($newkey_alt, $wa, $context_key);
             }
 
             $rule = $rest;
@@ -791,14 +793,20 @@ sub _get_weight_array {
 }
 
 sub _pack_weight_array {
-    my ($self, $entry, $weightArray) = @_;
+    my ($self, $entry, $weightArray, $context_key) = @_;
     my @CE;
     foreach my $m (@$weightArray) {
         push @CE, pack(VCE_TEMPLATE, @$m)
     }
+    if ($context_key) {
+        $self->{contexts}{$entry}++;
+        $entry = $context_key . CONTEXT_SEP . $entry;
+    }
+    else {
+        my @uv = split(CODE_SEP, $entry);
+        $self->setmaxlength(@uv) if @uv > 1;
+    }
     $self->{mapping}{$entry} = \@CE;
-    my @uv = split(CODE_SEP, $entry);
-    $self->setmaxlength(@uv) if @uv > 1;
 }
 
 sub _check_if_first_or_last {
@@ -1117,8 +1125,17 @@ sub getSortKey {
         and push @buf, $self->getWtHangulTerm();
     }
     else {
+        my $previous;
         foreach my $jcps (@$rEnt) {
-            push @buf, $self->getWt($jcps);
+            my $arg = $jcps;
+            if ($previous && $self->{contexts}{$jcps}) {
+                my $ckey = $previous . CONTEXT_SEP . $jcps;
+                if ($self->getmap($ckey)) {
+                    $arg = $ckey
+                }
+            }
+            push @buf, $self->getWt($arg);
+            $previous = $jcps;
         }
     }
 
