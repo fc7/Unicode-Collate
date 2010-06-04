@@ -43,10 +43,11 @@ no locale; # so that gt is done by code point order
 use lib 't/lib';
 use UCATest;
 
-my $UNICODE_VERSION = Unicode::UCD::UnicodeVersion;
-my @UV = split('.', $UNICODE_VERSION);
+my $UNICODE_VERSION = Unicode::UCD::UnicodeVersion();
+my @UV = split(/\./, $UNICODE_VERSION);
+die "Cannot determine Unicode Version" unless @UV == 3;
 if ($UV[0] < 5) {
-    die "Your version of Perl ($]) does not support Unicode >= 5.0.0)";
+    die "Your version of Perl ($]) does not support Unicode >= 5.0.0";
 }
 
 #########################
@@ -54,8 +55,7 @@ if ($UV[0] < 5) {
 my $Collator = Unicode::Collate->new(variable=>"non-ignorable", level=>3);
 
 ##############
-chdir "t/data/$UNICODE_VERSION" or die "Cannot chdir to 't/data/$UNICODE_VERSION'";
-my $testfile = 'CollationTest_NON_IGNORABLE.txt';
+my $testfile = File::Spec->catfile('t', 'data', $UNICODE_VERSION, 'CollationTest_NON_IGNORABLE.txt');
 
 my $testfh = new IO::File;
 
