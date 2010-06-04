@@ -17,6 +17,9 @@ BEGIN { plan tests => 65 };
 use strict;
 use warnings;
 use Unicode::Collate;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 our $IsEBCDIC = ord("A") != 0x41;
 
@@ -25,7 +28,7 @@ our $IsEBCDIC = ord("A") != 0x41;
 ok(1);
 
 my $Collator = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
 );
 

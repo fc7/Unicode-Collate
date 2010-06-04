@@ -17,6 +17,9 @@ BEGIN { plan tests => 37 };
 use strict;
 use warnings;
 use Unicode::Collate;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 ok(1);
 
@@ -29,7 +32,7 @@ my $A_acute = _pack_U(0xC1);
 my $acute   = _pack_U(0x0301);
 
 my $Collator = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
 );
 

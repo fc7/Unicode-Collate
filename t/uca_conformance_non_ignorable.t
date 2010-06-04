@@ -29,23 +29,27 @@ use strict;
 use warnings;
 use Test::More;
 
+use Unicode::UCD;
+my $UNICODE_VERSION = Unicode::UCD::UnicodeVersion();
+
+my %TESTS = ( 5.0.0 => 130056, 5.1.0 => 138285, 5.2.0 => 152854 ); # = ($no_of_lines - 1) + 1
+
 if ($ENV{TEST_UCA_CONFORMANCE}) {
-    plan( tests => 152853 ); # = ($no_of_lines - 1);
+    plan( tests => $TESTS{$UNICODE_VERSION} );
 }
 else {
     plan( skip_all => "official UCA conformance tests (set TEST_UCA_CONFORMANCE=1 to enable)" );
 }
 
 use Unicode::Collate;
-use Unicode::UCD;
 use IO::File;
 no locale; # so that gt is done by code point order
 use lib 't/lib';
 use UCATest;
 
-my $UNICODE_VERSION = Unicode::UCD::UnicodeVersion();
 my @UV = split(/\./, $UNICODE_VERSION);
-die "Cannot determine Unicode Version" unless @UV == 3;
+die "Cannot determine this Perl's Unicode version" unless @UV == 3;
+
 if ($UV[0] < 5) {
     die "Your version of Perl ($]) does not support Unicode >= 5.0.0";
 }
@@ -54,8 +58,11 @@ if ($UV[0] < 5) {
 
 my $Collator = Unicode::Collate->new(variable=>"non-ignorable", level=>3);
 
+# test 1
+ok($Collator->{versionTable} eq $UNICODE_VERSION, "Unicode version");
+
 ##############
-my $testfile = File::Spec->catfile('t', 'data', $UNICODE_VERSION, 'CollationTest_NON_IGNORABLE.txt');
+my $testfile = File::Spec->catfile('data', 'UCA', $UNICODE_VERSION, 'CollationTest_NON_IGNORABLE.txt');
 
 my $testfh = new IO::File;
 

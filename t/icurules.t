@@ -18,16 +18,19 @@ use strict;
 use warnings;
 use utf8;
 use Unicode::Collate;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 my $c=Unicode::Collate->new(
-    table=>"keys.db",
+    table=>$KeysTxt,
 );
 
 
 ok($c->lt("a", "z"));
 
 my $c2=Unicode::Collate->new(
-    table=>"keys.db",
+    table=>$KeysTxt,
     ICU_rules=>'& z < a <<< A << ä'
 );
 

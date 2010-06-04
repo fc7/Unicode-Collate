@@ -14,6 +14,9 @@ BEGIN {
 use Test;
 use strict;
 use warnings;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 BEGIN {
     use Unicode::Collate;
@@ -96,7 +99,7 @@ ok($illeg->lt("AA", "A\0"));
 my($match, $str, $sub, $ret);
 
 my $Collator = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   level => 1,
   normalization => undef,
 );

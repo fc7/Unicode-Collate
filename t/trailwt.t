@@ -16,6 +16,9 @@ BEGIN { plan tests => 58 };
 use strict;
 use warnings;
 use Unicode::Collate;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 #########################
 
@@ -24,7 +27,7 @@ ok(1);
 # a standard collator (3.1.1)
 my $Collator = Unicode::Collate->new(
   level => 1,
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
 
   entry => <<'ENTRIES',
@@ -47,7 +50,7 @@ ENTRIES
 
 my $hangul = Unicode::Collate->new(
   level => 1,
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   hangul_terminator => 16,
 
@@ -125,7 +128,7 @@ ok($hangul  ->eq("\x{1100}\x{1161}\x{11A8}", "\x{AC01}"));
 
 my $hangcirc = Unicode::Collate->new(
   level => 1,
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   hangul_terminator => 16,
 
@@ -174,7 +177,7 @@ ok($hangcirc->eq("\x{1100}\x{1161}\x{4E00}", "\x{326E}\x{4E00}"));
 
 my $hangcont = Unicode::Collate->new(
   level => 1,
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   hangul_terminator => 16,
 

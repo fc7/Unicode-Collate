@@ -17,13 +17,16 @@ BEGIN { plan tests => 53 };
 use strict;
 use warnings;
 use Unicode::Collate;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 #########################
 
 ok(1);
 
 my $Collator = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
 );
 

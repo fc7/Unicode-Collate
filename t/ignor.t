@@ -16,11 +16,14 @@ BEGIN { plan tests => 41 };
 use strict;
 use warnings;
 use Unicode::Collate;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 ok(1);
 
 my $trad = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   ignoreName => qr/HANGUL|HIRAGANA|KATAKANA|BOPOMOFO/,
   level => 3,
@@ -129,7 +132,7 @@ ok($L3ignorable->eq("\x{1D1BC}", "\x{1D1BA}\x{1D165}"));
 ##### 32..41
 
 my $c = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   level => 1,
   UCA_Version => 14,

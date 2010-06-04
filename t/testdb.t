@@ -12,13 +12,22 @@ BEGIN {
 }
 
 use Test;
-BEGIN { plan tests => 113 };
+BEGIN { plan tests => 114 };
 
 use strict;
 use warnings;
 use Unicode::Collate;
+use Unicode::Collate::CompileTable;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, qw(t data keys.txt));
+my $KeysDB  = File::Spec->catfile($dir, qw(t data keys.db ));
+my $c_tmp   = Unicode::Collate->new(table=>$KeysTxt);
+$c_tmp->compile_table( $KeysDB );
 
 ok(1);
+
+ok ( -f $KeysDB );
 
 sub _pack_U   { Unicode::Collate::pack_U(@_) }
 sub _unpack_U { Unicode::Collate::unpack_U(@_) }
@@ -33,7 +42,7 @@ my $katakana = "\x{30A2}\x{30A4}";
 ##### 2..7
 
 my $Collator = Unicode::Collate->new(
-  table => 'keys.db',
+  table => $KeysDB,
   normalization => undef,
 );
 
@@ -139,7 +148,7 @@ ok( $Collator->lt($hiragana, $katakana) );
 ##### 53..54
 
 my $ignoreAE = Unicode::Collate->new(
-  table => 'keys.db',
+  table => $KeysDB,
   normalization => undef,
   ignoreChar => qr/^[aAeE]$/,
 );
@@ -170,7 +179,7 @@ ok(
 ##### 56..59
 
 my $undefAE = Unicode::Collate->new(
-  table => 'keys.db',
+  table => $KeysDB,
   normalization => undef,
   undefChar => qr/^[aAeE]$/,
 );
@@ -246,7 +255,7 @@ ok($few_entries->eq("\x{AC00}", "\x{1100}\x{1161}"));
 ##### 75..79
 
 my $dropArticles = Unicode::Collate->new(
-  table => "keys.db",
+  table => $KeysDB,
   normalization => undef,
   preprocess => sub {
     my $string = shift;
@@ -277,7 +286,7 @@ ok($backLevel1->gt("\x{3042}\x{3044}", "\x{3044}\x{3042}"));
 ##### 82..89
 
 my $backLevel2 = Unicode::Collate->new(
-  table => "keys.db", 
+  table => $KeysDB, 
   normalization => undef,
   undefName => qr/HANGUL|HIRAGANA|KATAKANA|BOPOMOFO/, 
   backwards => 2,
@@ -300,7 +309,7 @@ ok($Collator  ->gt("\x{4E03}", $katakana));
 ##### 90..96
 
 my $O_str = Unicode::Collate->new(
-  table => "keys.db",
+  table => $KeysDB,
   normalization => undef,
   entry => <<'ENTRIES',
 0008  ; [*0008.0000.0000.0000] # BACKSPACE (need to be non-ignorable)
@@ -366,7 +375,7 @@ ok($Collator->eq("!\x{300}", "!"));
 $_ = 'Foo';
 
 my $c = Unicode::Collate->new(
-  table => 'keys.db',
+  table => $KeysDB,
   normalization => undef,
   upper_before_lower => 1,
 );
@@ -395,5 +404,6 @@ $_ = 'Foo';
 @temp = $c->index("perl5", "LR");
 ok($_, 'Foo');
 
+unlink $KeysDB or warn "Could not delete compiled file $KeysDB";
 #####
 

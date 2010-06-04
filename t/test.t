@@ -17,6 +17,9 @@ BEGIN { plan tests => 113 };
 use strict;
 use warnings;
 use Unicode::Collate;
+use Cwd;
+my $dir     = getcwd();
+my $KeysTxt = File::Spec->catfile($dir, 't', 'data', 'keys.txt');
 
 ok(1);
 
@@ -33,7 +36,7 @@ my $katakana = "\x{30A2}\x{30A4}";
 ##### 2..7
 
 my $Collator = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
 );
 
@@ -139,7 +142,7 @@ ok( $Collator->lt($hiragana, $katakana) );
 ##### 53..54
 
 my $ignoreAE = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   ignoreChar => qr/^[aAeE]$/,
 );
@@ -170,7 +173,7 @@ ok(
 ##### 56..59
 
 my $undefAE = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   undefChar => qr/^[aAeE]$/,
 );
@@ -366,7 +369,7 @@ ok($Collator->eq("!\x{300}", "!"));
 $_ = 'Foo';
 
 my $c = Unicode::Collate->new(
-  table => 'keys.txt',
+  table => $KeysTxt,
   normalization => undef,
   upper_before_lower => 1,
 );

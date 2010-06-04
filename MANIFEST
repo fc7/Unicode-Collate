@@ -1,8 +1,16 @@
 Changes
+data/UCA/5.0.0/allkeys.txt
+data/UCA/5.0.0/CollationTest_NON_IGNORABLE.txt
+data/UCA/5.0.0/CollationTest_SHIFTED.txt
+data/UCA/5.1.0/allkeys.txt
+data/UCA/5.1.0/CollationTest_NON_IGNORABLE.txt
+data/UCA/5.1.0/CollationTest_SHIFTED.txt
+data/UCA/5.2.0/allkeys.txt
+data/UCA/5.2.0/CollationTest.html
+data/UCA/5.2.0/CollationTest_NON_IGNORABLE.txt
+data/UCA/5.2.0/CollationTest_SHIFTED.txt
 lib/Unicode/Collate.pm
 lib/Unicode/Collate/CompileTable.pm
-lib/Unicode/Collate/allkeys.txt
-lib/Unicode/Collate/keys.txt
 lib/Unicode/Collate/Locale.pm
 lib/Unicode/Collate/Locale/Data.pm
 lib/Unicode/Collate/Locale/af.pm
@@ -98,3 +106,4 @@ t/trailwt.t
 t/variable.t
 t/version.t
 t/view.t
+t/data/keys.txt
