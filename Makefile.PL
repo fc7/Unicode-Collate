@@ -17,15 +17,23 @@ my $DUCET = File::Spec->catfile('data', 'UCA', $UnicodeVersion, 'allkeys.txt');
 if (-f $DUCET ) {
     print "Using DUCET for Unicode version $UnicodeVersion\n";
 }
+#TODO attempt to fetch it from http://www.unicode.org/Public/UCA/${UnicodeVersion}/allkeys.txt using File::Fetch ??
+#elsif ( eval {
+#               require File::Fetch;
+#               my $ff = File::Fetch->new( uri => "http://www.unicode.org/Public/UCA/${UnicodeVersion}/allkeys.txt" );
+#               $ff->fetch( to => File::Spec->catfile('data', 'UCA', $UnicodeVersion) )
+#             } ) {
+#      printf "Fetched %s for Unicode version %s from %s\n", $ff->file, $UnicodeVersion, $ff->uri;
+#}
 else {
-    warn "I could not find a DUCET file corresponding to the version of Unicode underlying your ver sion of Perl.\nI will use version $FallbackVersion as fallback";
+    warn "I could not find a DUCET file corresponding to the version of Unicode underlying your version of Perl.\nI will use version $FallbackVersion as fallback";
     $DUCET = File::Spec->catfile('data', 'UCA', $FallbackVersion, 'allkeys.txt');
 }
 
 copy( $DUCET, File::Spec->catfile( qw(lib Unicode Collate), 'allkeys.txt' ) )
     or die "ERROR: Cannot copy $DUCET to lib/Unicode/Collate/";
 
-my @tables = glob(File::Spec->catfile( qw(lib Unicode Collate), "*.txt" ));
+my @tables = glob( File::Spec->catfile( qw(lib Unicode Collate), "*.txt" ) );
 foreach my $table (@tables) {
     $table  = basename($table);
     my $col = Unicode::Collate->new( table=>$table );

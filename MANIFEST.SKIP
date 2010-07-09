@@ -2,3 +2,4 @@
 MANIFEST.SKIP
 etc
 tmp
+lib/Unicode/Collate/*.{txt,db}

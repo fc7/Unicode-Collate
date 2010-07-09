@@ -1,6 +1,6 @@
 Revision history for Perl module Unicode::Collate.
 
-0.53 (NOT OFFICIAL)
+0.54 (NOT OFFICIAL)
     - Added the latest DUCET (for Unicode 5.2.0) as lib/Unicode/Collate/allkeys.txt.
     - The collate tables are compiled at build time to a gdbm file on disk:
       this considerably speeds up initialization of Unicode::Collate objects.

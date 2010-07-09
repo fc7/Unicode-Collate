@@ -1,4 +1,4 @@
-Unicode/Collate version 0.53
+Unicode/Collate version 0.54
 ========================================================
 !!! NB: THIS IS A NON OFFICIAL FORK FROM v0.52 on CPAN
 !!! See Changes for details
@@ -65,7 +65,7 @@ DEPENDENCIES
   The conformant collation requires Unicode::Normalize (v 0.10 or later)
   although Unicode::Collate can be used without Unicode::Normalize.
 
-  Version 0.53 add the following requirements (all in core perl):
+  Version 0.54 add the following requirements (all in core perl):
    - GDBM_File
    - Storable
    - Unicode::UCD

@@ -16,7 +16,7 @@ use Storable qw/thaw/;
 
 no warnings 'utf8';
 
-our $VERSION = '0.53';
+our $VERSION = '0.54';
 our $PACKAGE = __PACKAGE__;
 
 my @Path = qw(Unicode Collate);

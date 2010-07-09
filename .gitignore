@@ -1,5 +1,5 @@
 Makefile
-lib/Unicode/Collate/*.db
+lib/Unicode/Collate/*keys.*
 blib
 *.xz
 *.swp
