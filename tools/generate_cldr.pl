@@ -405,6 +405,8 @@ my $Locale_Data = File::Spec->catfile($Locale_Dir, "Data.pm");
 
 $output .= "package Unicode::Collate::Locale::Data;\n\n";
 
+$output .= "our \$CLDR_version = '$CLDR_Version';\n\n";
+
 $output .= "our %aliases = " . dump_hash(\%aliases) . ";\n\n";
 
 $output .= "our %aliases_with_type = " . dump_hash(\%aliases_with_type) . ";\n\n";

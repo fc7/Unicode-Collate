@@ -128,6 +128,10 @@ sub version {
     return shift->{version}
 }
 
+sub CLDR_Version {
+    return $Unicode::Collate::Locale::Data::CLDR_Version
+}
+
 sub types {
     return @{shift->{types}}
 }

@@ -108,6 +108,11 @@ sub UCA_Version { "18" } # TODO -> "20"
 
 sub Base_Unicode_Version { "5.1.0" } # TODO -> "5.2.0"
 
+sub CLDR_Version {
+    require Unicode::Collate::Locale::Data;
+    return $Unicode::Collate::Locale::Data::CLDR_Version;
+}
+
 ######
 
 sub pack_U {

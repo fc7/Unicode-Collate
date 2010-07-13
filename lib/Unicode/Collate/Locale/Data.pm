@@ -5,6 +5,8 @@
 
 package Unicode::Collate::Locale::Data;
 
+our $CLDR_Version = '1.8';
+
 our %aliases = (
     af_NA       => "af",
     af_ZA       => "af",
