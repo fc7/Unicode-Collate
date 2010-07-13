@@ -32,7 +32,7 @@ use Test::More;
 use Unicode::UCD;
 my $UNICODE_VERSION = Unicode::UCD::UnicodeVersion();
 
-my %TESTS = ( 5.0.0 => 130056, 5.1.0 => 138285, 5.2.0 => 152854 ); # = ($no_of_lines - 1) + 1
+my %TESTS = ( '5.0.0' => 130056, '5.1.0' => 138285, '5.2.0' => 152854 ); # = ($no_of_lines - 1) + 1
 
 if ($ENV{TEST_UCA_CONFORMANCE}) {
     plan( tests => $TESTS{$UNICODE_VERSION} );
