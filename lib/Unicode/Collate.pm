@@ -138,7 +138,7 @@ our @ChangeOK = qw/
   /;
 
 our @ChangeNG = qw/
-    entry mapping table maxlength
+    entry mapping table maxlength locale collation_type
     ignoreChar ignoreName undefChar undefName variableTable
     versionTable alternateTable backwardsTable forwardsTable rearrangeTable
     derivCode normCode rearrangeHash
