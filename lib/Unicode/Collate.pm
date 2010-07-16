@@ -1181,16 +1181,6 @@ sub getSortKey {
             elsif ($w == 0x1D)             { $w -= 1 } # square lower
         }
     }
-    #FIXME this is untested
-    #implement "caseFirst =  lower"
-#    if ($self->{caseFirst} eq 'lower') {
-#        foreach my $w (@{ $ret[2] }) {
-#            if    (0x8 <= $w && $w <= 0xC) { $w += 6 } # lower
-#            elsif (0x2 <= $w && $w <= 0x6) { $w -= 6 } # upper
-#            elsif ($w == 0x1C)             { $w -= 1 } # square upper
-#            elsif ($w == 0x1D)             { $w += 1 } # square lower
-#        }
-#    }
 
     #TODO also implement parameter "hiraganaQuaternary" (on/off)
     if ($self->{katakana_before_hiragana}) {
