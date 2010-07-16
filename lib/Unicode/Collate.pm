@@ -898,25 +898,22 @@ sub visualizeSortKey {
 ## arrayref of arrayref[JCPS, ini_pos, fin_pos] = splitEnt(string, true)
 ##
 sub splitEnt {
-    my $self = shift;
-    my $wLen = $_[1];
+    my ($self, $str, $wLen) = @_;
 
     my $code = $self->{preprocess};
     my $norm = $self->{normCode};
     my $reH  = $self->{rearrangeHash};
     my $ver9 = $self->{UCA_Version} >= 9 && $self->{UCA_Version} <= 11;
 
-    my ($str, @buf);
+    my @buf;
 
     if ($wLen) {
         $code and croak "Preprocess breaks character positions. "
                 . "Don't use with index(), match(), etc.";
         $norm and croak "Normalization breaks character positions. "
                 . "Don't use with index(), match(), etc.";
-        $str = $_[0];
     }
     else {
-        $str = $_[0];
         $str = &$code($str) if ref $code;
         $str = &$norm($str) if ref $norm;
     }
