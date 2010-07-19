@@ -250,6 +250,10 @@ sub checkCollator {
         }
     }
 
+    if (defined $self->{caseFirst} && $self->{caseFirst} eq 'upper') {
+        $self->{upper_before_lower} = TRUE
+    }
+
     defined $self->{rearrange} or $self->{rearrange} = [];
     ref $self->{rearrange}
         or croak "$PACKAGE: list for rearrangement must be stored in ARRAYREF";
@@ -325,6 +329,7 @@ sub new {
         if ! exists $self->{rearrange};
     $self->{backwards} = $self->{backwardsTable}
         if ! exists $self->{backwards};
+    $self->{is_tailored} = FALSE;
 
     if (exists $self->{locale}) {
         my $loc      = $self->load_locale;
@@ -751,6 +756,7 @@ sub parse_ICU_rules {
             $firstrule = 0;
         }
     }
+    $self->{is_tailored} = TRUE
 }
 
 sub _get_key {
@@ -1111,8 +1117,7 @@ sub getSortKey {
 
     # experimental hack to make 'upper_before_lower' also work
     # with CLDR tailorings
-    if ($self->{upper_before_lower} or
-        (defined $self->{caseFirst} && $self->{caseFirst} eq 'upper') ) {
+    if ($self->{is_tailored} and $self->{upper_before_lower}) {
         $str =~ s{(.)}{_foldcase($1)}eg;
     }
     my $rEnt = $self->splitEnt($str); # get an arrayref of JCPS
@@ -1188,15 +1193,14 @@ sub getSortKey {
     # inserted in front of tertiary level. To ignore accents but take cases
     # into account, set strength to primary and case level to on." (UCA §5.1)
 
-#    if ($self->{upper_before_lower} or
-#        (defined $self->{caseFirst} && $self->{caseFirst} eq 'upper') ) {
-#        foreach my $w (@{ $ret[2] }) {
-#            if    (0x8 <= $w && $w <= 0xC) { $w -= 6 } # lower
-#            elsif (0x2 <= $w && $w <= 0x6) { $w += 6 } # upper
-#            elsif ($w == 0x1C)             { $w += 1 } # square upper
-#            elsif ($w == 0x1D)             { $w -= 1 } # square lower
-#        }
-#    }
+    if (!$self->{is_tailored} and $self->{upper_before_lower}) {
+        foreach my $w (@{ $ret[2] }) {
+            if    (0x8 <= $w && $w <= 0xC) { $w -= 6 } # lower
+            elsif (0x2 <= $w && $w <= 0x6) { $w += 6 } # upper
+            elsif ($w == 0x1C)             { $w += 1 } # square upper
+            elsif ($w == 0x1D)             { $w -= 1 } # square lower
+        }
+    }
 
     #TODO also implement parameter "hiraganaQuaternary" (on/off)
     if ($self->{katakana_before_hiragana}) {
