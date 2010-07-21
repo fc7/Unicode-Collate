@@ -1,4 +1,4 @@
-Unicode/Collate version 0.54
+Unicode/Collate version 0.60
 ========================================================
 !!! NB: THIS IS A NON OFFICIAL FORK FROM v0.52 on CPAN
 !!! See Changes for details
@@ -81,7 +81,10 @@ This forked version by François Charette, (C) 2010.
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
-The file lib/Unicode/Collate/allkeys.txt was copied directly
-from http://www.unicode.org/Public/UCA/5.2.0/allkeys.txt
-This file is Copyright (c) 1991-2009 Unicode, Inc. All rights reserved.
+The files data/UCA/<version>/allkeys.txt were copied directly
+  from http://www.unicode.org/Public/UCA/<version>/allkeys.txt
+The files under data/CLDR/collation/ were extracted from 
+  http://unicode.org/Public/cldr/1.8.0/core.zip
+These files are Copyright (c) 1991-2010 Unicode, Inc. All rights reserved.
 Distributed under the Terms of Use in http://www.unicode.org/terms_of_use.html
+
