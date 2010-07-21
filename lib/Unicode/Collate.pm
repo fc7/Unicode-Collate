@@ -1673,7 +1673,7 @@ The supported revisions are: 8, 9, 11, 14, 16 and 18.
      16              5.0                5.0.0 (5.0.0)
      18             5.1.0               5.1.0 (5.1.0)
 
-Note: In prior version or UTS #10 the term "Tracking Version" was used
+Note: In prior versions of UTS #10, the term "Tracking Version" was used
 instead of "Revision".
 
 =item alternate
