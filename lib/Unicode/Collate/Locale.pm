@@ -2,12 +2,47 @@ package Unicode::Collate::Locale;
 use Carp;
 use Unicode::Collate::Locale::Data;
 
-#TODO POD
+=encoding utf-8
+
+=head1 NAME
+
+Unicode::Collate::Locale - interface to CLDR collation tailorings
+
+(CLDR stands for Unicode's "Common Locale Data Repository")
+
+=head1 VERSION
+
+Version 0.1
+
+=cut
+
+our $VERSION = '0.1';
+
+=head SYNOPSIS
+
+    use Unicode::Collate::Locale;
+    my $loc       = Unicode::Collate::Locale->load($id);
+    my @types     = $loc->types;
+    my $rules     = $loc->rules($type);
+    my %settings  = $loc->settings($type);
+    my %tailoring = $loc->tailoring($type);
+
+=cut
 
 my %aliases           = %Unicode::Collate::Locale::Data::aliases;
 my %aliases_with_type = %Unicode::Collate::Locale::Data::aliases_with_type;
 my @available         = @Unicode::Collate::Locale::Data::available_locales;
 my %available         = map { $_ => 1 } @available;
+
+=head1 METHODS
+
+=head2 load
+
+    my $loc = Unicode::Collate::Locale->load($locale_id);
+
+    Initializes a Unicode::Collate::Locale object
+
+=cut
 
 sub load {
     my $class  = shift;
@@ -57,6 +92,16 @@ sub load {
     return
 }
 
+=head2 tailoring
+
+    $loc->tailoring($collation_type);
+
+    Returns a hash which can be used as a tailoring for initializing a
+    Unicode::Collate object. If no collation type is passed as argument,
+    the default type is used.
+
+=cut
+
 sub tailoring {
     my ($self, $type) = @_;
 
@@ -87,6 +132,17 @@ sub tailoring {
     return
 }
 
+=head2 rules
+
+    $loc->rules($collation_type);
+
+    Returns a string with the collation rules in ICU syntax for a particular
+    collation type. If no argument is passed, the rules for the default type
+    are returned. These rules can be passed to the 'ICU_rules' parameter of
+    Unicode::Collate.
+
+=cut
+
 sub rules {
     my ($self, $type) = @_;
 
@@ -104,6 +160,17 @@ sub rules {
 
     return
 }
+
+=head2 settings
+
+    $loc->settings($collation_type);
+
+    Return a hash with the collation settings corresponding to a particular
+    collation type. If no argument is passed, the settings for the default type
+    are returned. These settings are parameters which can be passed to a
+    Unicode::Collate object.
+
+=cut
 
 sub settings {
     my ($self, $type) = @_;
@@ -124,21 +191,55 @@ sub settings {
 
 }
 
+=head2 version
+
+    Returns the version (actually a SVN revision number) of the collation data
+    in the LDML file of the CLDR release underlying the
+    Unicode::Collate::Locale::* modules.
+
+=cut
+
 sub version {
     return shift->{version}
 }
+
+=head2 CLDR_Version
+
+    Returns the CLDR release number underlying the collation data in the
+    Unicode::Collate::Locale::* modules.
+
+=cut
 
 sub CLDR_Version {
     return $Unicode::Collate::Locale::Data::CLDR_Version
 }
 
+=head2 types
+
+    Returns an array with the different collation types available for a
+    particular locale.
+
+=cut
+
 sub types {
     return @{shift->{types}}
 }
 
+=head2 id
+
+    Returns the id string identifying a locale.
+
+=cut
+
 sub id {
     return shift->{id}
 }
+
+=head2 default_type
+
+    Returns the default collation type for a given locale.
+
+=cut
 
 sub default_type {
     my $self = shift;
@@ -154,4 +255,28 @@ sub default_type {
     }
 }
 
+=head1 AUTHOR
+
+François Charette, C<< <firmicus@cpan.org> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2010 François Charette, all rights reserved.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of either:
+
+=over 4
+
+=item * the GNU General Public License as published by the Free
+Software Foundation; either version 1, or (at your option) any
+later version, or
+
+=item * the Artistic License version 2.0.
+
+=back
+
+=cut
+
 1;
+# vim: set tabstop=4 shiftwidth=4 expandtab:

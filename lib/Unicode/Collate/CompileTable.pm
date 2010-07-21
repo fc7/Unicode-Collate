@@ -42,4 +42,52 @@ sub Unicode::Collate::compile_table {
     untie %MAPPING;
 }
 
+=encoding utf-8
+
+=head1 NAME
+
+Unicode::Collate::CompileTable - helper module to compile a collation table to a GDBM file
+
+=head1 VERSION
+
+Version 0.1
+
+=head1 SYNOPSIS
+
+    use Unicode::Collate;
+    use Unicode::Collate::CompileTable;
+    my $col=Unicode::Collate->new( table => '/path/to/allkeys.txt' );
+    $col->compile_table( '/path/to/allkeys.db' );
+
+=head1 METHOD
+
+=head2 compile_table
+
+    This adds one method to Unicode::Collate.
+    It takes the path of the output file as argument.
+
+=head1 AUTHOR
+
+François Charette, C<< <firmicus@cpan.org> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2010 François Charette, all rights reserved.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of either:
+
+=over 4
+
+=item * the GNU General Public License as published by the Free
+Software Foundation; either version 1, or (at your option) any
+later version, or
+
+=item * the Artistic License version 2.0.
+
+=back
+
+=cut
+
 1;
+# vim: set tabstop=4 shiftwidth=4 expandtab:
