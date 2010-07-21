@@ -1,4 +1,5 @@
 Makefile
+Makefile.old
 lib/Unicode/Collate/*keys.*
 blib
 *.xz
