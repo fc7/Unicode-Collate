@@ -36,8 +36,8 @@ my $CVgetCombinClass;
 
 # Supported Levels
 use constant MinLevel => 1;
-use constant DefaultLevel => 4; #FIXME -> UCA says 3 is the default
-use constant MaxLevel => 4; #TODO -> 5 in UCA ("identical")
+use constant DefaultLevel => 4; #FIXME -> UTS #10 says 3 is the default
+use constant MaxLevel => 4; #TODO -> 5 in UTS #10 ("identical")
 
 # Minimum weights at level 2 and 3, respectively
 use constant Min2Wt => 0x20;
@@ -856,7 +856,7 @@ sub _check_if_first_or_last {
 # Sets the default value for the variable top. All the code points with primary
 # strengths less than variable top will be considered variable, and thus
 # affected by the alternate handling. If not specified, then the default is the
-# value in DUCET." (UCA ß5.1)
+# value in DUCET." (UTS #10, 5.1)
 #
 sub _varCE {
     my $vbl = shift;
@@ -1191,7 +1191,7 @@ sub getSortKey {
     #TODO implement parameters "caseLevel" (on/off)
     # "If set to on, a level consisting only of case characteristics will be
     # inserted in front of tertiary level. To ignore accents but take cases
-    # into account, set strength to primary and case level to on." (UCA ß5.1)
+    # into account, set strength to primary and case level to on." (UTS #10, 5.1)
 
     if (!$self->{is_tailored} and $self->{upper_before_lower}) {
         foreach my $w (@{ $ret[2] }) {
@@ -1407,7 +1407,7 @@ sub _eqArray($$$) {
 #### TODO
 # implement parameters match-boundaries ("none/whole-character/whole-word")
 # and match-style ("minimal/medial/maximal")
-# See UCA ß5.1 and ß8
+# See UTS #10, 5.1 and 8
 sub index {
     my $self = shift;
     my $str  = shift;
@@ -1602,6 +1602,8 @@ sub gsubst {
 1;
 __END__
 
+=encoding utf8
+
 =head1 NAME
 
 Unicode::Collate - Unicode Collation Algorithm
@@ -1636,12 +1638,15 @@ The C<new> method returns a collator object.
       UCA_Version => $UCA_Version,
       alternate => $alternate, # deprecated: use of 'variable' is recommended.
       backwards => $levelNumber, # or \@levelNumbers
+      collation_type => $collation_type, # only meaningful with parameter 'locale'
       entry => $element,
       hangul_terminator => $term_primary_weight,
+      ICU_rules => $ICU_rules,
       ignoreName => qr/$ignoreName/,
       ignoreChar => qr/$ignoreChar/,
       katakana_before_hiragana => $bool,
       level => $collationLevel,
+      locale => $locale_ID,
       normalization  => $normalization_form,
       overrideCJK => \&overrideCJK,
       overrideHangul => \&overrideHangul,
@@ -1691,6 +1696,13 @@ as an alias for C<variable>.
 
 Weights in reverse order; ex. level 2 (diacritic ordering) in French.
 If omitted, forwards at all the levels.
+
+=item caseFirst
+
+Takes values 'upper' or 'lower'. The latter is the default behaviour, while the
+former is equivalent to 'upper_before_lower'.
+
+This is for conformance to UTS #10, 5.1 "Parametric Tailoring".
 
 =item entry
 
@@ -1768,6 +1780,19 @@ automatically terminated with a terminator primary weight.
 These characters may need terminator included in a collation element
 table beforehand.
 
+=item ICU_rules
+
+Apply a tailoring based on rules expressed in ICU syntax[*].
+
+    ICU_rules => <<'END',
+& A << \xE1 <<< \xC1 < \xE4 <<< \xC4
+& c <<< C < \x{10D} <<< \x{10C}
+& H < ch <<< cH <<< Ch <<< CH
+END
+
+[*] see C<http://icu.sourceforge.net/userguide/Collate_Customization.html>
+for details.
+
 =item ignoreChar
 
 =item ignoreName
@@ -1810,9 +1835,26 @@ Any higher levels than the specified one are ignored.
   Level 3: case ordering
   Level 4: tie-breaking (e.g. in the case when variable is 'shifted')
 
-  ex.level => 2,
+  Example: level => 2,
 
 If omitted, the maximum is the 4th.
+
+See also C<strength>.
+
+=item locale
+
+Apply the CLDR collation tailorings for a particular locale.
+
+    Examples:
+    - locale => 'ca'
+        loads the default collation rules for Catalan.
+    - locale => 'current'
+        attempts to load collation rules for the locale currently defined on
+        the system, obtained from the first defined value among:
+        $ENV{LC_COLLATE}, $ENV{LANG}, and $ENV{LC_ALL}.
+
+See also the documentation of B<Unicode::Collate::Locale>
+    and http://cldr.unicode.org/index/cldr-spec/collation-guidelines ***
 
 =item normalization
 
@@ -1947,6 +1989,14 @@ If C<UCA_Version> is equal to or greater than 14, default is C<[]>
 B<According to the version 9 of UCA, this parameter shall not be used;
 but it is not warned at present.>
 
+=item strength
+
+Alternative for 'level'. Possible values are 'primary', 'secondary',
+'tertiary', 'quaternary' and 'identity', which correspond to levels 1 to 5,
+respectively.
+
+This is for conformance to UTS #10, 5.1 "Parametric Tailoring".
+
 =item table
 
 -- see 3.2 Default Unicode Collation Element Table, UTS #10.
@@ -2009,16 +2059,23 @@ ex. Collation weights for beyond-BMP characters are not stored in object:
 
 =item upper_before_lower
 
--- see 6.6 Case Comparisons, UTS #10.
+-- see 6.6 Case Comparisons, UTS #10. See also 'caseFirst'.
 
 By default, lowercase is before uppercase.
 If the parameter is made true, this is reversed.
 
-B<NOTE>: This parameter simplemindedly assumes that any lowercase/uppercase
+B<NOTE 1>: This parameter simple-mindedly assumes that any lowercase/uppercase
 distinctions must occur in level 3, and their weights at level 3 must be
 same as those mentioned in 7.3.1, UTS #10.
 If you define your collation elements which differs from this requirement,
 this parameter doesn't work validly.
+
+B<NOTE 2>: When the parameter "locale" is used, the above method does not work
+and another simple-minded approach is used instead, which consists in
+interverting the case of each character before generating the sort key.
+This works well in most cases, but not with letter-like symbols that have
+a case property, since they cannot be upper- or lowercased (as it would change
+their identity).
 
 =item variable
 
@@ -2143,15 +2200,15 @@ e.g. you say
 
   my $Collator = Unicode::Collate->new( normalization => undef, level => 1 );
                                      # (normalization => undef) is REQUIRED.
-  my $str = "Ich muﬂ Perl lernen.";
-  my $sub = "M‹SS";
+  my $str = "Ich mu√ü Perl lernen.";
+  my $sub = "M√úSS";
   my $match;
   if (my($pos,$len) = $Collator->index($str, $sub)) {
       $match = substr($str, $pos, $len);
   }
 
-and get C<"muﬂ"> in C<$match> since C<"muﬂ">
-is primary equal to C<"M‹SS">.
+and get C<"mu√ü"> in C<$match> since C<"mu√ü">
+is primary equal to C<"M√úSS">.
 
 =item C<$match_ref = $Collator-E<gt>match($string, $substring)>
 
@@ -2266,11 +2323,16 @@ returns C<"unknown">.
 
 =item C<UCA_Version()>
 
-Returns the tracking version number of UTS #10 this module consults.
+Returns the revision number of UTS #10 this module consults.
 
 =item C<Base_Unicode_Version()>
 
 Returns the version number of UTS #10 this module consults.
+
+=item C<CLDR_Version()>
+
+Returns the version number of the CLDR release underlying the collation rules
+in the Unicode::Collate::Locale::* modules.
 
 =back
 
@@ -2331,6 +2393,9 @@ B<Unicode::Normalize is required to try The Conformance Test.>
 The Unicode::Collate module for Perl was written by SADAHIRO Tomoyuki,
 <SADAHIRO@cpan.org>. This module is Copyright(C) 2001-2010,
 SADAHIRO Tomoyuki. Japan. All rights reserved.
+
+This CLDR-enabled fork was written by Fran√ßois Charette
+<firmicus@cpan.org>. Copyright 2010. All rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
